@@ -1,0 +1,14 @@
+[
+    {"ID": "P001", "Nombre": "Cerveza Salta Rubia 1L", "Categoria": "Con Alcohol", "Precio": 2500, "Precio_Promo": "", "Stock": "Sí", "Imagen_URL": "salta.jpg", "Destacado": "Sí"},
+    {"ID": "P002", "Nombre": "Fernet Branca 750ml", "Categoria": "Con Alcohol", "Precio": 8500, "Precio_Promo": 7900, "Stock": "Sí", "Imagen_URL": "fernet.jpg", "Destacado": "Sí"},
+    {"ID": "P003", "Nombre": "Vodka Skyy 700ml", "Categoria": "Con Alcohol", "Precio": 6500, "Precio_Promo": "", "Stock": "Sí", "Imagen_URL": "skyy.jpg", "Destacado": "No"},
+    {"ID": "P004", "Nombre": "Coca-Cola 2.25L", "Categoria": "Sin Alcohol", "Precio": 2500, "Precio_Promo": "", "Stock": "Sí", "Imagen_URL": "coca.jpg", "Destacado": "No"},
+    {"ID": "P005", "Nombre": "Sprite 2.25L", "Categoria": "Sin Alcohol", "Precio": 2500, "Precio_Promo": "", "Stock": "Sí", "Imagen_URL": "sprite.jpg", "Destacado": "No"},
+    {"ID": "P006", "Nombre": "Speed Energizante 250ml", "Categoria": "Sin Alcohol", "Precio": 1200, "Precio_Promo": "", "Stock": "Sí", "Imagen_URL": "speed.jpg", "Destacado": "No"},
+    {"ID": "P007", "Nombre": "Gatorade Frutos Rojos", "Categoria": "Sin Alcohol", "Precio": 1800, "Precio_Promo": "", "Stock": "Sí", "Imagen_URL": "gatorade.jpg", "Destacado": "No"},
+    {"ID": "P008", "Nombre": "Encendedor Bic", "Categoria": "Kiosco", "Precio": 800, "Precio_Promo": "", "Stock": "Sí", "Imagen_URL": "encendedor.jpg", "Destacado": "No"},
+    {"ID": "P009", "Nombre": "Bolsa Coca de Coquear (Especial)", "Categoria": "Kiosco", "Precio": 2000, "Precio_Promo": "", "Stock": "Sí", "Imagen_URL": "coca_hoja.jpg", "Destacado": "Sí"},
+    {"ID": "P010", "Nombre": "Cigarrillos Marlboro Box 20", "Categoria": "Kiosco", "Precio": 2800, "Precio_Promo": "", "Stock": "Sí", "Imagen_URL": "marlboro.jpg", "Destacado": "No"},
+    {"ID": "P011", "Nombre": "Combo Previa: Fernet + 2 Coca + Hielo", "Categoria": "Combos", "Precio": 14500, "Precio_Promo": 13000, "Stock": "Sí", "Imagen_URL": "combo_fernet.jpg", "Destacado": "Sí"},
+    {"ID": "P012", "Nombre": "Combo Tranqui: Skyy + 2 Speed", "Categoria": "Combos", "Precio": 9500, "Precio_Promo": 8500, "Stock": "Sí", "Imagen_URL": "combo_skyy.jpg", "Destacado": "Sí"}
+]

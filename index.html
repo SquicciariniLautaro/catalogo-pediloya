@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PediloYa! - Catálogo</title>
+    <!-- Bootstrap CSS Local -->
+    <link rel="stylesheet" href="node_modules/bootstrap/dist/css/bootstrap.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
+    <!-- Tus estilos -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-dark text-light">
+
+    <!-- Navbar Minimalista -->
+    <nav class="navbar navbar-dark bg-black sticky-top shadow-sm">
+        <div class="container d-flex justify-content-between">
+            <a class="navbar-brand fw-bold text-pediloya" href="#">
+                <span class="bg-pediloya text-black px-2 py-1 rounded-circle me-1">Ya!</span> PediloYa
+            </a>
+        <button class="btn btn-outline-pediloya" type="button" data-bs-toggle="offcanvas" data-bs-target="#carritoOffcanvas">
+                    Mi Pedido <span id="cart-count" class="badge bg-pediloya text-black ms-1">0</span>
+        </button>
+        </div>
+    </nav>
+
+    <div class="container my-4">
+        <!-- Filtros -->
+        <div class="d-flex gap-2 overflow-auto pb-2 mb-4" id="filtros">
+            <button class="btn btn-pediloya active" onclick="filtrar('Todos')">Todos</button>
+            <button class="btn btn-outline-pediloya" onclick="filtrar('Promos')">Promos</button>
+            <button class="btn btn-outline-pediloya" onclick="filtrar('Con Alcohol')">Bebidas</button>
+            <button class="btn btn-outline-pediloya" onclick="filtrar('Sin Alcohol')">Sin Alcohol</button>
+            <button class="btn btn-outline-pediloya" onclick="filtrar('Kiosco')">Kiosco</button>
+        </div>
+
+        <!-- Grilla de Productos -->
+        <div class="row g-4" id="catalogo-container">
+            <!-- Las tarjetas se inyectarán con JavaScript -->
+        </div>
+    </div>
+
+<!-- Offcanvas Carrito (Panel lateral) -->
+    <div class="offcanvas offcanvas-end bg-dark text-light" tabindex="-1" id="carritoOffcanvas">
+        <div class="offcanvas-header border-bottom border-secondary">
+            <h5 class="offcanvas-title">Tu Pedido</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+        </div>
+        <div class="offcanvas-body d-flex flex-column">
+            <!-- AQUÍ SE INYECTAN LOS ITEMS (ID vital: carrito-items) -->
+            <div id="carrito-items" class="flex-grow-1 overflow-auto">
+                <!-- Items del carrito -->
+            </div>
+            
+            <div class="border-top border-secondary pt-3 mt-3">
+                <!-- TOTAL (ID vital: carrito-total) -->
+                <h4 class="d-flex justify-content-between mb-3">
+                    Total: <span id="carrito-total" class="text-pediloya">$0</span>
+                </h4>
+                
+                <!-- Botón de WhatsApp -->
+                <button class="btn btn-whatsapp w-100 fw-bold py-2" onclick="enviarPedidoWhatsApp()">
+                    Enviar Pedido por WhatsApp
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Botón Flotante del Carrito -->
+    <button id="btn-flotante-carrito" class="btn btn-pediloya btn-flotante d-none shadow" type="button" data-bs-toggle="offcanvas" data-bs-target="#carritoOffcanvas">
+        Ver Pedido (<span id="cart-count-flotante">0</span>)
+    </button>
+
+    <!-- Bootstrap JS Local -->
+    <script src="node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</body>
+</html>
