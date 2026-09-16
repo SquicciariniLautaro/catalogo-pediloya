@@ -63,6 +63,12 @@ function parsearCSV(csv) {
 function renderizarCatalogo(lista) {
     const contenedor = document.getElementById('catalogo-container');
     contenedor.innerHTML = '';
+    
+    lista.sort((a, b) => {
+        if (a.Destacado === 'Sí' && b.Destacado !== 'Sí') return -1;
+        if (a.Destacado !== 'Sí' && b.Destacado === 'Sí') return 1;
+        return 0; // Si son iguales, los deja como están
+    });
 
     lista.forEach(prod => {
         let precioFinal = prod.Precio_Promo ? prod.Precio_Promo : prod.Precio;
