@@ -1,24 +1,70 @@
 let productos = [];
 let carrito = [];
 
-// Cargar datos
+const urlGoogleSheets = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQyizdc2peg8eyYkmf0EPVVum7tMve6mhzAjYLoUQ13KS0RkHN6UKvQT1eIiaSSQgHIkAOlPzLJUft4/pub?output=csv';
+
 document.addEventListener('DOMContentLoaded', () => {
-    // Aquí luego cambiaremos 'productos.json' por la URL de la API de Google Sheets
-    fetch('productos.json')
-        .then(res => res.json())
-        .then(data => {
-            productos = data;
+    
+    // --- LÓGICA DE LA ANIMACIÓN DE ENTRADA ---
+    const preloader = document.getElementById('preloader');
+    const logoPreloader = document.getElementById('logo-preloader');
+    
+    // Mostramos el logo 1 segundo después (cuando la moto está pasando)
+    setTimeout(() => {
+        logoPreloader.classList.add('mostrar-logo');
+    }, 700);
+
+    // Ocultamos toda la pantalla amarilla a los 2.8 segundos para mostrar el catálogo
+    setTimeout(() => {
+        preloader.classList.add('ocultar-preloader');
+    }, 1700);
+    // -----------------------------------------
+
+    // --- CARGA DE DATOS DE GOOGLE SHEETS ---
+    fetch(urlGoogleSheets)
+        .then(res => res.text()) // Leemos el CSV
+        .then(csv => {
+            productos = parsearCSV(csv);
             renderizarCatalogo(productos);
         })
         .catch(err => console.error("Error al cargar productos:", err));
 });
 
+// Función que convierte el CSV de Google Sheets en datos para tu web
+function parsearCSV(csv) {
+    const lineas = csv.split('\n');
+    const headers = lineas[0].split(',');
+    const data = [];
+    
+    // Empezamos desde 1 para saltar la fila de los títulos (headers)
+    for(let i = 1; i < lineas.length; i++) {
+        if(!lineas[i].trim()) continue;
+        const valores = lineas[i].split(',');
+        let obj = {};
+        
+        headers.forEach((h, index) => {
+            // Limpiamos espacios y caracteres ocultos
+            let headerLimpio = h.trim().replace('\r', '');
+            let valor = valores[index] ? valores[index].trim().replace('\r', '') : "";
+            
+            // Si es la columna Precio o Precio_Promo, lo convertimos a número
+            if (headerLimpio === 'Precio' || headerLimpio === 'Precio_Promo') {
+                valor = valor ? Number(valor) : "";
+            }
+            
+            obj[headerLimpio] = valor;
+        });
+        data.push(obj);
+    }
+    return data;
+}
+
+// ESTA ES LA FUNCIÓN QUE FALTABA
 function renderizarCatalogo(lista) {
     const contenedor = document.getElementById('catalogo-container');
     contenedor.innerHTML = '';
 
     lista.forEach(prod => {
-        // Lógica para precios y promociones
         let precioFinal = prod.Precio_Promo ? prod.Precio_Promo : prod.Precio;
         let htmlPromo = prod.Precio_Promo 
             ? `<div class="etiqueta-promo">¡Promo!</div>` 
@@ -28,13 +74,18 @@ function renderizarCatalogo(lista) {
             ? `<small class="text-muted text-decoration-line-through">$${prod.Precio}</small>` 
             : '';
 
+        // Si hay una URL en el Excel, la usa. Si no, muestra un recuadro gris.
+        let htmlImagen = prod.Imagen_URL 
+            ? `<img src="${prod.Imagen_URL}" alt="${prod.Nombre}" class="img-fluid p-3" style="max-height: 100%; object-fit: contain;">`
+            : `<span class="text-muted">Sin Imagen</span>`;
+
         const card = document.createElement('div');
         card.className = 'col-6 col-md-4 col-lg-3';
         card.innerHTML = `
             <div class="card-producto h-100 d-flex flex-column">
                 <div class="img-container">
                     ${htmlPromo}
-                    <img src="${prod.Imagen_URL}" alt="${prod.Nombre}" class="img-fluid p-3" style="max-height: 100%; object-fit: contain;">
+                    ${htmlImagen}
                 </div>
                 <div class="p-3 d-flex flex-column flex-grow-1">
                     <h6 class="mb-1">${prod.Nombre}</h6>
@@ -51,20 +102,16 @@ function renderizarCatalogo(lista) {
 }
 
 function filtrar(categoria) {
-    // Capturamos el botón exacto al que le hicieron clic
     const btnClickeado = event.currentTarget;
     
-    // 1. Reiniciar todos los botones: les quitamos el fondo sólido y les devolvemos el borde (outline)
     document.querySelectorAll('#filtros .btn').forEach(btn => {
         btn.classList.remove('active', 'btn-pediloya');
         btn.classList.add('btn-outline-pediloya');
     });
 
-    // 2. Al botón clickeado: le quitamos el borde y le ponemos el fondo amarillo sólido
     btnClickeado.classList.remove('btn-outline-pediloya');
     btnClickeado.classList.add('active', 'btn-pediloya');
 
-    // 3. Filtrar el catálogo
     if (categoria === 'Todos') {
         renderizarCatalogo(productos);
     } else if (categoria === 'Promos') {
@@ -87,9 +134,8 @@ function agregarAlCarrito(id) {
 function actualizarCarrito() {
     const contenedor = document.getElementById('carrito-items');
     const totalElement = document.getElementById('carrito-total');
-    const countElement = document.getElementById('cart-count'); // El de la barra superior
+    const countElement = document.getElementById('cart-count'); 
     
-    // Capturamos los elementos del botón flotante
     const btnFlotante = document.getElementById('btn-flotante-carrito');
     const countFlotante = document.getElementById('cart-count-flotante');
     
@@ -111,11 +157,9 @@ function actualizarCarrito() {
 
     totalElement.innerText = `$${total}`;
     
-    // Actualizamos los números de los carritos
     countElement.innerText = carrito.length;
     if (countFlotante) countFlotante.innerText = carrito.length;
 
-    // Lógica para mostrar/ocultar el botón flotante
     if (carrito.length > 0) {
         btnFlotante.classList.remove('d-none');
     } else {
@@ -123,7 +167,6 @@ function actualizarCarrito() {
     }
 }
 
-// Enviar pedido a WhatsApp
 function enviarPedidoWhatsApp() {
     if (carrito.length === 0) return;
 
@@ -138,10 +181,7 @@ function enviarPedidoWhatsApp() {
     mensaje += `\n*Total a pagar: $${total}*\n\n`;
     mensaje += "¿Me confirmas el tiempo de demora y cómo te lo pago?";
 
-    // Número formateado con el código de Argentina (54) y el área (9)
     const numeroWhatsApp = "5493885830234";
-    
-    // encodeURIComponent convierte los espacios y saltos de línea para que la URL sea válida
     const url = `https://wa.me/${numeroWhatsApp}?text=${encodeURIComponent(mensaje)}`;
     
     window.open(url, '_blank');
@@ -152,22 +192,15 @@ function eliminarDelCarrito(index) {
     actualizarCarrito();
 }
 
-// Manejo visual del botón flotante cuando se abre/cierra el carrito
 document.addEventListener('DOMContentLoaded', () => {
-    
-    // Capturamos el panel lateral (Offcanvas)
     const carritoOffcanvas = document.getElementById('carritoOffcanvas');
     const btnFlotante = document.getElementById('btn-flotante-carrito');
 
-    // Evento de Bootstrap: Cuando el panel empieza a ABRIRSE
     carritoOffcanvas.addEventListener('show.bs.offcanvas', event => {
-        // Ocultamos el botón flotante forzosamente
         btnFlotante.style.display = 'none';
     });
 
-    // Evento de Bootstrap: Cuando el panel termina de CERRARSE
     carritoOffcanvas.addEventListener('hidden.bs.offcanvas', event => {
-        // Solo lo volvemos a mostrar si hay cosas en el carrito
         if (carrito.length > 0) {
             btnFlotante.style.display = 'block';
         }
