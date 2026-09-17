@@ -82,7 +82,7 @@ function renderizarCatalogo(lista) {
 
         // Si hay una URL en el Excel, la usa. Si no, muestra un recuadro gris.
         let htmlImagen = prod.Imagen_URL 
-            ? `<img src="${prod.Imagen_URL}" alt="${prod.Nombre}" class="img-fluid p-3" style="max-height: 100%; object-fit: contain;">`
+            ? `<img src="${prod.Imagen_URL}" alt="${prod.Nombre}" style="width: 100%; height: 100%; object-fit: cover; object-position: center;">`
             : `<span class="text-muted">Sin Imagen</span>`;
 
         const card = document.createElement('div');
