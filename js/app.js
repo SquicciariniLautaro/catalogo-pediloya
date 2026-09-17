@@ -77,9 +77,8 @@ function renderizarCatalogo(lista) {
             : '';
         
         let htmlPrecioOriginal = prod.Precio_Promo 
-            ? `<small class="text-muted text-decoration-line-through">$${prod.Precio}</small>` 
+            ? `<small class="text-white-50 text-decoration-line-through mb-1 d-block" style="font-size: 0.9em;">$${prod.Precio}</small>` 
             : '';
-
         // Si hay una URL en el Excel, la usa. Si no, muestra un recuadro gris.
         let htmlImagen = prod.Imagen_URL 
             ? `<img src="${prod.Imagen_URL}" alt="${prod.Nombre}" style="width: 100%; height: 100%; object-fit: cover; object-position: center;">`
