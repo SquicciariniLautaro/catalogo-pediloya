@@ -1,213 +1,295 @@
 let productos = [];
 let carrito = [];
+let productosMostrados = [];
 
 const urlGoogleSheets = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQyizdc2peg8eyYkmf0EPVVum7tMve6mhzAjYLoUQ13KS0RkHN6UKvQT1eIiaSSQgHIkAOlPzLJUft4/pub?output=csv';
 
 document.addEventListener('DOMContentLoaded', () => {
-    
-    // --- LÓGICA DE LA ANIMACIÓN DE ENTRADA ---
     const preloader = document.getElementById('preloader');
     const logoPreloader = document.getElementById('logo-preloader');
     
-    // Mostramos el logo 1 segundo después (cuando la moto está pasando)
-    setTimeout(() => {
-        logoPreloader.classList.add('mostrar-logo');
-    }, 700);
+    setTimeout(() => { if(logoPreloader) logoPreloader.classList.add('mostrar-logo'); }, 500);
+    setTimeout(() => { if(preloader) preloader.classList.add('ocultar-preloader'); }, 1600);
 
-    // Ocultamos toda la pantalla amarilla a los 2.8 segundos para mostrar el catálogo
-    setTimeout(() => {
-        preloader.classList.add('ocultar-preloader');
-    }, 1700);
-    // -----------------------------------------
-
-    // --- CARGA DE DATOS DE GOOGLE SHEETS ---
     fetch(urlGoogleSheets)
-        .then(res => res.text()) // Leemos el CSV
+        .then(res => res.text())
         .then(csv => {
             productos = parsearCSV(csv);
-            renderizarCatalogo(productos);
+            productosMostrados = [...productos];
+            renderizarCatalogo(productosMostrados);
         })
-        .catch(err => console.error("Error al cargar productos:", err));
+        .catch(err => console.error('Error al cargar datos:', err));
 });
 
-// Función que convierte el CSV de Google Sheets en datos para tu web
 function parsearCSV(csv) {
     const lineas = csv.split('\n');
     const headers = lineas[0].split(',');
-    const data = [];
-    
-    // Empezamos desde 1 para saltar la fila de los títulos (headers)
-    for(let i = 1; i < lineas.length; i++) {
-        if(!lineas[i].trim()) continue;
-        const valores = lineas[i].split(',');
+    return lineas.slice(1).filter(l => l.trim()).map(linea => {
+        const valores = linea.split(',');
         let obj = {};
-        
-        headers.forEach((h, index) => {
-            // Limpiamos espacios y caracteres ocultos
-            let headerLimpio = h.trim().replace('\r', '');
-            let valor = valores[index] ? valores[index].trim().replace('\r', '') : "";
-            
-            // Si es la columna Precio o Precio_Promo, lo convertimos a número
-            if (headerLimpio === 'Precio' || headerLimpio === 'Precio_Promo') {
-                valor = valor ? Number(valor) : "";
-            }
-            
-            obj[headerLimpio] = valor;
+        headers.forEach((h, i) => {
+            let header = h.trim().replace('\r', '');
+            let val = valores[i] ? valores[i].trim().replace('\r', '') : '';
+            if (header === 'Precio' || header === 'Precio_Promo') val = val ? Number(val) : '';
+            obj[header] = val;
         });
-        data.push(obj);
-    }
-    return data;
+        return obj;
+    });
 }
 
-// ESTA ES LA FUNCIÓN QUE FALTABA
 function renderizarCatalogo(lista) {
     const contenedor = document.getElementById('catalogo-container');
+    if(!contenedor) return;
     contenedor.innerHTML = '';
-    
+
     lista.sort((a, b) => {
         if (a.Destacado === 'Sí' && b.Destacado !== 'Sí') return -1;
         if (a.Destacado !== 'Sí' && b.Destacado === 'Sí') return 1;
-        return 0; // Si son iguales, los deja como están
+        return 0;
     });
 
     lista.forEach(prod => {
-        let precioFinal = prod.Precio_Promo ? prod.Precio_Promo : prod.Precio;
-        let htmlPromo = prod.Precio_Promo 
-            ? `<div class="etiqueta-promo">¡Promo!</div>` 
-            : '';
-        
-        let htmlPrecioOriginal = prod.Precio_Promo 
-            ? `<small class="text-white-50 text-decoration-line-through mb-1 d-block" style="font-size: 0.9em;">$${prod.Precio}</small>` 
-            : '';
-        // Si hay una URL en el Excel, la usa. Si no, muestra un recuadro gris.
-        let htmlImagen = prod.Imagen_URL 
-            ? `<img src="${prod.Imagen_URL}" alt="${prod.Nombre}" style="width: 100%; height: 100%; object-fit: cover; object-position: center;">`
-            : `<span class="text-muted">Sin Imagen</span>`;
+        const precioFinal = prod.Precio_Promo ? prod.Precio_Promo : prod.Precio;
+        const itemEnCarrito = carrito.find(p => p.ID === prod.ID);
+
+        const col = document.createElement('div');
+        col.className = 'col-6 col-md-4 col-lg-3';
 
         const card = document.createElement('div');
-        card.className = 'col-6 col-md-4 col-lg-3';
-        card.innerHTML = `
-            <div class="card-producto h-100 d-flex flex-column">
-                <div class="img-container">
-                    ${htmlPromo}
-                    ${htmlImagen}
-                </div>
-                <div class="p-3 d-flex flex-column flex-grow-1">
-                    <h6 class="mb-1">${prod.Nombre}</h6>
-                    <div class="mt-auto">
-                        ${htmlPrecioOriginal}
-                        <h5 class="text-pediloya mb-2">$${precioFinal}</h5>
-                        <button class="btn btn-sm btn-outline-pediloya w-100" onclick="agregarAlCarrito('${prod.ID}')">Agregar</button>
-                    </div>
-                </div>
-            </div>
-        `;
-        contenedor.appendChild(card);
+        card.className = 'card-producto h-100 d-flex flex-column';
+
+        const imgContainer = document.createElement('div');
+        imgContainer.className = 'img-container';
+
+        if (prod.Precio_Promo) {
+            const promo = document.createElement('div');
+            promo.className = 'etiqueta-promo';
+            promo.textContent = '¡Promo!';
+            imgContainer.appendChild(promo);
+        }
+
+        if (prod.Imagen_URL) {
+            const img = document.createElement('img');
+            img.src = prod.Imagen_URL;
+            img.alt = prod.Nombre;
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.style.objectFit = 'cover';
+            img.style.objectPosition = 'center';
+            imgContainer.appendChild(img);
+        } else {
+            const span = document.createElement('span');
+            span.className = 'text-muted';
+            span.textContent = 'Sin Imagen';
+            imgContainer.appendChild(span);
+        }
+
+        const body = document.createElement('div');
+        body.className = 'p-3 d-flex flex-column flex-grow-1';
+
+        const title = document.createElement('h6');
+        title.className = 'mb-1 text-light';
+        title.textContent = prod.Nombre;
+
+        const mtAuto = document.createElement('div');
+        mtAuto.className = 'mt-auto';
+
+        if (prod.Precio_Promo) {
+            const tachado = document.createElement('small');
+            tachado.className = 'text-white-50 text-decoration-line-through mb-1 d-block';
+            tachado.style.fontSize = '0.9em';
+            tachado.textContent = '$' + prod.Precio;
+            mtAuto.appendChild(tachado);
+        }
+
+        const precioTxt = document.createElement('h5');
+        precioTxt.className = 'text-pediloya mb-3';
+        precioTxt.textContent = '$' + precioFinal;
+        mtAuto.appendChild(precioTxt);
+
+        if (itemEnCarrito) {
+            const btnGroup = document.createElement('div');
+            btnGroup.className = 'd-flex justify-content-between align-items-center w-100 bg-black rounded border border-pediloya';
+            
+            const btnRestar = document.createElement('button');
+            btnRestar.className = 'btn btn-sm text-pediloya fw-bold px-3 py-1 border-0';
+            btnRestar.textContent = '-';
+            btnRestar.onclick = () => restarDelCarrito(prod.ID);
+
+            const spanCant = document.createElement('span');
+            spanCant.className = 'fw-bold text-light';
+            spanCant.textContent = itemEnCarrito.cantidad;
+
+            const btnSumar = document.createElement('button');
+            btnSumar.className = 'btn btn-sm text-pediloya fw-bold px-3 py-1 border-0';
+            btnSumar.textContent = '+';
+            btnSumar.onclick = () => agregarAlCarrito(prod.ID);
+
+            btnGroup.appendChild(btnRestar);
+            btnGroup.appendChild(spanCant);
+            btnGroup.appendChild(btnSumar);
+            mtAuto.appendChild(btnGroup);
+        } else {
+            const btnAgregar = document.createElement('button');
+            btnAgregar.className = 'btn btn-sm btn-outline-pediloya w-100';
+            btnAgregar.textContent = 'Agregar';
+            btnAgregar.onclick = () => agregarAlCarrito(prod.ID);
+            mtAuto.appendChild(btnAgregar);
+        }
+
+        body.appendChild(title);
+        body.appendChild(mtAuto);
+        card.appendChild(imgContainer);
+        card.appendChild(body);
+        col.appendChild(card);
+        contenedor.appendChild(col);
     });
 }
 
 function filtrar(categoria) {
-    const btnClickeado = event.currentTarget;
-    
+    const btnClickeado = event ? event.currentTarget : null;
     document.querySelectorAll('#filtros .btn').forEach(btn => {
         btn.classList.remove('active', 'btn-pediloya');
         btn.classList.add('btn-outline-pediloya');
     });
-
-    btnClickeado.classList.remove('btn-outline-pediloya');
-    btnClickeado.classList.add('active', 'btn-pediloya');
-
-    if (categoria === 'Todos') {
-        renderizarCatalogo(productos);
-    } else if (categoria === 'Promos') {
-        const promos = productos.filter(p => p.Precio_Promo !== "");
-        renderizarCatalogo(promos);
-    } else {
-        const filtrados = productos.filter(p => p.Categoria === categoria);
-        renderizarCatalogo(filtrados);
+    if (btnClickeado) {
+        btnClickeado.classList.remove('btn-outline-pediloya');
+        btnClickeado.classList.add('active', 'btn-pediloya');
     }
+    if (categoria === 'Todos') {
+        productosMostrados = [...productos];
+    } else if (categoria === 'Promos') {
+        productosMostrados = productos.filter(p => p.Precio_Promo !== '');
+    } else {
+        productosMostrados = productos.filter(p => p.Categoria === categoria);
+    }
+    renderizarCatalogo(productosMostrados);
 }
 
 function agregarAlCarrito(id) {
-    const producto = productos.find(p => p.ID === id);
-    const precio = producto.Precio_Promo ? producto.Precio_Promo : producto.Precio;
-    
-    carrito.push({ ...producto, precioVenta: precio });
+    const itemExistente = carrito.find(p => p.ID === id);
+    if (itemExistente) {
+        itemExistente.cantidad++;
+    } else {
+        const prod = productos.find(p => p.ID === id);
+        if (!prod) return;
+        carrito.push({ ...prod, precioVenta: (prod.Precio_Promo || prod.Precio), cantidad: 1 });
+    }
     actualizarCarrito();
+    renderizarCatalogo(productosMostrados);
+}
+
+function restarDelCarrito(id) {
+    const item = carrito.find(p => p.ID === id);
+    if (item) {
+        if (item.cantidad > 1) item.cantidad--;
+        else carrito = carrito.filter(p => p.ID !== id);
+    }
+    actualizarCarrito();
+    renderizarCatalogo(productosMostrados);
+}
+
+function eliminarDelCarrito(id) {
+    carrito = carrito.filter(p => p.ID !== id);
+    actualizarCarrito();
+    renderizarCatalogo(productosMostrados);
 }
 
 function actualizarCarrito() {
     const contenedor = document.getElementById('carrito-items');
     const totalElement = document.getElementById('carrito-total');
     const countElement = document.getElementById('cart-count'); 
-    
     const btnFlotante = document.getElementById('btn-flotante-carrito');
     const countFlotante = document.getElementById('cart-count-flotante');
     
+    if(!contenedor) return;
     contenedor.innerHTML = '';
     let total = 0;
+    let cantidadTotalArticulos = 0;
 
-    carrito.forEach((item, index) => {
-        total += item.precioVenta;
-        contenedor.innerHTML += `
-            <div class="d-flex justify-content-between align-items-center mb-2 bg-black p-2 rounded">
-                <small>${item.Nombre}</small>
-                <div class="d-flex align-items-center">
-                    <span class="text-pediloya me-2">$${item.precioVenta}</span>
-                    <button class="btn btn-sm btn-danger py-0 px-2" onclick="eliminarDelCarrito(${index})">X</button>
-                </div>
-            </div>
-        `;
+    carrito.forEach(item => {
+        const subtotal = item.precioVenta * item.cantidad;
+        total += subtotal;
+        cantidadTotalArticulos += item.cantidad;
+
+        const div = document.createElement('div');
+        div.className = 'd-flex justify-content-between align-items-center mb-2 bg-black p-2 rounded border border-secondary border-opacity-25';
+        
+        const infoDiv = document.createElement('div');
+        infoDiv.style.flex = '1';
+        infoDiv.style.paddingRight = '10px';
+        
+        const title = document.createElement('small');
+        title.className = 'd-block lh-sm mb-1';
+        title.textContent = item.Nombre;
+        
+        const price = document.createElement('span');
+        price.className = 'text-pediloya fw-bold';
+        price.textContent = '$' + subtotal;
+        
+        infoDiv.appendChild(title);
+        infoDiv.appendChild(price);
+        
+        const controlsDiv = document.createElement('div');
+        controlsDiv.className = 'd-flex align-items-center gap-2';
+        
+        const btnMinus = document.createElement('button');
+        btnMinus.className = 'btn btn-sm btn-outline-light py-0 px-2';
+        btnMinus.textContent = '-';
+        btnMinus.onclick = () => restarDelCarrito(item.ID);
+        
+        const spanQty = document.createElement('span');
+        spanQty.className = 'fw-bold text-light';
+        spanQty.textContent = item.cantidad;
+        
+        const btnPlus = document.createElement('button');
+        btnPlus.className = 'btn btn-sm btn-pediloya py-0 px-2 text-black';
+        btnPlus.textContent = '+';
+        btnPlus.onclick = () => agregarAlCarrito(item.ID);
+        
+        const btnDel = document.createElement('button');
+        btnDel.className = 'btn btn-sm btn-danger py-0 px-2 ms-2';
+        btnDel.textContent = 'X';
+        btnDel.onclick = () => eliminarDelCarrito(item.ID);
+        
+        controlsDiv.appendChild(btnMinus);
+        controlsDiv.appendChild(spanQty);
+        controlsDiv.appendChild(btnPlus);
+        controlsDiv.appendChild(btnDel);
+        
+        div.appendChild(infoDiv);
+        div.appendChild(controlsDiv);
+        contenedor.appendChild(div);
     });
 
-    totalElement.innerText = `$${total}`;
-    
-    countElement.innerText = carrito.length;
-    if (countFlotante) countFlotante.innerText = carrito.length;
+    if(totalElement) totalElement.textContent = '$' + total;
+    if(countElement) countElement.textContent = cantidadTotalArticulos;
+    if(countFlotante) countFlotante.textContent = cantidadTotalArticulos;
 
-    if (carrito.length > 0) {
-        btnFlotante.classList.remove('d-none');
-    } else {
-        btnFlotante.classList.add('d-none');
+    if (btnFlotante) {
+        if (carrito.length > 0) btnFlotante.classList.remove('d-none');
+        else btnFlotante.classList.add('d-none');
     }
 }
 
 function enviarPedidoWhatsApp() {
     if (carrito.length === 0) return;
-
-    let mensaje = "¡Hola PediloYa! Quiero hacer este pedido:\n\n";
+    let mensaje = '¡Hola PediloYa! Quiero hacer este pedido:\n\n';
     let total = 0;
-
     carrito.forEach(item => {
-        mensaje += `1x ${item.Nombre} - $${item.precioVenta}\n`;
-        total += item.precioVenta;
+        const subtotal = item.precioVenta * item.cantidad;
+        mensaje += '*' + item.cantidad + 'x* ' + item.Nombre + ' - $' + subtotal + '\n';
+        total += subtotal;
     });
-
-    mensaje += `\n*Total a pagar: $${total}*\n\n`;
-    mensaje += "¿Me confirmas el tiempo de demora y cómo te lo pago?";
-
-    const numeroWhatsApp = "5493885830234";
-    const url = `https://wa.me/${numeroWhatsApp}?text=${encodeURIComponent(mensaje)}`;
-    
-    window.open(url, '_blank');
-}
-
-function eliminarDelCarrito(index) {
-    carrito.splice(index, 1);
-    actualizarCarrito();
+    mensaje += '\n*Total a pagar: $' + total + '*\n\n¿Me confirmas el tiempo de demora y cómo te lo pago?';
+    window.open('https://wa.me/5493885830234?text=' + encodeURIComponent(mensaje), '_blank');
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     const carritoOffcanvas = document.getElementById('carritoOffcanvas');
     const btnFlotante = document.getElementById('btn-flotante-carrito');
-
-    carritoOffcanvas.addEventListener('show.bs.offcanvas', event => {
-        btnFlotante.style.display = 'none';
-    });
-
-    carritoOffcanvas.addEventListener('hidden.bs.offcanvas', event => {
-        if (carrito.length > 0) {
-            btnFlotante.style.display = 'block';
-        }
-    });
+    if (carritoOffcanvas && btnFlotante) {
+        carritoOffcanvas.addEventListener('show.bs.offcanvas', () => { btnFlotante.style.display = 'none'; });
+        carritoOffcanvas.addEventListener('hidden.bs.offcanvas', () => { if (carrito.length > 0) btnFlotante.style.display = 'block'; });
+    }
 });
