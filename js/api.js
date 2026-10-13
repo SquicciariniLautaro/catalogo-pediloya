@@ -51,15 +51,44 @@ async function leerDeGoogleSheets() {
     }));
 }
 
+// Pasa el texto CSV a una lista de objetos, uno por fila, usando la primera
+// fila como nombres de columna. Respeta los campos entre comillas: un nombre
+// con coma llega como "Combo Vino, Hielo" y no tiene que partirse en dos.
 function parsearCSV(csv) {
-    const lineas = csv.split('\n');
-    const headers = lineas[0].split(',');
-    return lineas.slice(1).filter(l => l.trim()).map(linea => {
-        const valores = linea.split(',');
-        let obj = {};
-        headers.forEach((h, i) => {
-            let header = h.trim().replace('\r', '');
-            let val = valores[i] ? valores[i].trim().replace('\r', '') : '';
+    const filas = [];
+    let fila = [];
+    let celda = '';
+    let entreComillas = false;
+
+    for (let i = 0; i < csv.length; i++) {
+        const c = csv[i];
+        if (entreComillas) {
+            // Dos comillas seguidas dentro de un campo son una comilla escrita.
+            if (c === '"' && csv[i + 1] === '"') { celda += '"'; i++; }
+            else if (c === '"') entreComillas = false;
+            else celda += c;
+        } else if (c === '"') {
+            entreComillas = true;
+        } else if (c === ',') {
+            fila.push(celda);
+            celda = '';
+        } else if (c === '\n') {
+            fila.push(celda);
+            filas.push(fila);
+            fila = [];
+            celda = '';
+        } else if (c !== '\r') {
+            celda += c;
+        }
+    }
+    fila.push(celda);
+    filas.push(fila);
+
+    const headers = filas[0].map(h => h.trim());
+    return filas.slice(1).filter(valores => valores.some(v => v.trim())).map(valores => {
+        const obj = {};
+        headers.forEach((header, i) => {
+            let val = (valores[i] || '').trim();
             if (header === 'Precio' || header === 'Precio_Promo') val = val ? Number(val) : '';
             obj[header] = val;
         });
