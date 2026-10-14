@@ -6,9 +6,9 @@
 // Mientras estén vacíos, el catálogo sigue leyendo la planilla de Google.
 const SUPABASE = {
     // Forma: https://xxxxxxxxxxxx.supabase.co
-    url: '',
+    url: 'https://csyioblpbupaaqlxvonn.supabase.co',
     // La clave "publishable" (empieza con sb_publishable_) o la "anon".
-    clave: ''
+    clave: 'sb_publishable_-U7aKq69jjHxOdI7po2cfQ_8MD3udOq'
 };
 
 // Datos del negocio que usa el catálogo.
