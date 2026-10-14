@@ -1,295 +1,611 @@
+// Catálogo público: productos, buscador, filtros, pedido y envío por WhatsApp.
+
 let productos = [];
-let carrito = [];
-let productosMostrados = [];
+// El pedido guarda solo qué producto y cuántos. El nombre y el precio se leen
+// siempre de "productos": así nunca queda un precio viejo guardado.
+let carrito = [];               // [{ id, cantidad }]
+let categoriaActiva = 'Todos';
+let textoBuscado = '';
+let ubicacion = null;           // { latitud, longitud } si el cliente la sumó al pedido
+
+// Zona de botones de cada tarjeta en pantalla (id del producto -> elemento),
+// para poder redibujar solo esa parte cuando cambia la cantidad.
+let zonasDeAccion = new Map();
+
+const CLAVE_CARRITO = 'pediloya-carrito';
+const CLAVE_ENTREGA = 'pediloya-entrega';
+const TARJETAS_DE_CARGA = 8;
+// Ancho con el que se piden las fotos: alcanza para dos columnas en un celular de pantalla densa.
+const ANCHO_FOTO = 480;
 
 document.addEventListener('DOMContentLoaded', () => {
-    const preloader = document.getElementById('preloader');
-    const logoPreloader = document.getElementById('logo-preloader');
+    document.getElementById('pie-whatsapp').href = 'https://wa.me/' + NEGOCIO.whatsapp;
 
-    setTimeout(() => { if(logoPreloader) logoPreloader.classList.add('mostrar-logo'); }, 500);
-    setTimeout(() => { if(preloader) preloader.classList.add('ocultar-preloader'); }, 1600);
+    const buscador = document.getElementById('buscador');
+    buscador.addEventListener('input', () => {
+        textoBuscado = buscador.value;
+        renderizarCatalogo();
+    });
+    // En el celular, "Buscar" en el teclado lo cierra para ver los resultados.
+    buscador.addEventListener('keydown', evento => {
+        if (evento.key === 'Enter') buscador.blur();
+    });
+
+    document.getElementById('filtros').addEventListener('click', evento => {
+        const boton = evento.target.closest('.btn-filtro');
+        if (boton) filtrar(boton.dataset.categoria);
+    });
+    document.getElementById('btn-limpiar-busqueda').addEventListener('click', limpiarBusqueda);
+    document.getElementById('btn-reintentar').addEventListener('click', cargarProductos);
+    document.getElementById('btn-vaciar').addEventListener('click', vaciarPedido);
+    document.getElementById('btn-ubicacion').addEventListener('click', alternarUbicacion);
+    document.getElementById('form-entrega').addEventListener('submit', enviarPedidoWhatsApp);
+
+    prepararFormularioEntrega();
+    cargarProductos();
+});
+
+// --- Utilidades -------------------------------------------------------------
+
+function mostrar(id, visible) {
+    document.getElementById(id).classList.toggle('d-none', !visible);
+}
+
+function formatearPrecio(numero) {
+    return '$' + Number(numero).toLocaleString('es-AR');
+}
+
+function precioDe(prod) {
+    return prod.precio_promo ? prod.precio_promo : prod.precio;
+}
+
+function buscarProducto(id) {
+    return productos.find(p => p.id === id);
+}
+
+// localStorage puede no estar disponible (modo privado, espacio lleno): el
+// sitio tiene que funcionar igual, solo que sin recordar.
+function leerGuardado(clave, porDefecto) {
+    try {
+        const texto = localStorage.getItem(clave);
+        return texto ? JSON.parse(texto) : porDefecto;
+    } catch (e) {
+        return porDefecto;
+    }
+}
+
+function guardar(clave, valor) {
+    try {
+        localStorage.setItem(clave, JSON.stringify(valor));
+    } catch (e) {}
+}
+
+// Las fotos de Cloudinary se piden ya achicadas y en el formato más liviano
+// que acepte el navegador (pesan unas seis veces menos). Las demás van tal cual.
+function fotoOptimizada(url, ancho) {
+    return url.replace(
+        /^(https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\/)(v\d+\/)/,
+        '$1f_auto,q_auto,w_' + ancho + '/$2'
+    );
+}
+
+// Vuelve a dibujar un pedazo de la página sin que quien usa el teclado pierda
+// el lugar: si el foco estaba en un botón de adentro, vuelve al equivalente.
+function redibujarConFoco(contenedor, redibujar) {
+    const activo = contenedor.contains(document.activeElement) ? document.activeElement : null;
+    const marca = activo ? { id: activo.dataset.id, accion: activo.dataset.accion } : null;
+    redibujar();
+    if (!marca) return;
+    const botones = [...contenedor.querySelectorAll('button[data-accion]')];
+    const equivalente = botones.find(b => b.dataset.id === marca.id && b.dataset.accion === marca.accion)
+        || botones.find(b => b.dataset.id === marca.id)
+        || botones[0];
+    if (equivalente) equivalente.focus();
+}
+
+// --- Catálogo ---------------------------------------------------------------
+
+function cargarProductos() {
+    mostrar('error-carga', false);
+    mostrar('sin-resultados', false);
+    mostrarTarjetasDeCarga();
 
     // Los productos llegan ya en el orden en que se muestran (ver api.js).
     obtenerProductos()
         .then(lista => {
             productos = lista;
-            productosMostrados = [...productos];
-            renderizarCatalogo(productosMostrados);
+            // Del pedido guardado quedan los productos que siguen existiendo y con stock.
+            const guardado = leerGuardado(CLAVE_CARRITO, []);
+            carrito = (Array.isArray(guardado) ? guardado : []).filter(item => {
+                const prod = buscarProducto(item.id);
+                return prod && prod.disponible && item.cantidad > 0;
+            });
+            renderizarCatalogo();
+            actualizarCarrito();
         })
         .catch(err => {
             console.error('Error al cargar datos:', err);
-            mostrarErrorDeCarga();
+            document.getElementById('catalogo-container').innerHTML = '';
+            mostrar('error-carga', true);
         });
-});
-
-function mostrarErrorDeCarga() {
-    const contenedor = document.getElementById('catalogo-container');
-    if(!contenedor) return;
-    const aviso = document.createElement('p');
-    aviso.className = 'text-center text-white-50 py-5';
-    aviso.textContent = 'No pudimos cargar los productos. Revisá tu conexión y recargá la página.';
-    contenedor.appendChild(aviso);
 }
 
-function renderizarCatalogo(lista) {
+// Tarjetas grises con la forma de un producto, mientras llegan los datos.
+function mostrarTarjetasDeCarga() {
     const contenedor = document.getElementById('catalogo-container');
-    if(!contenedor) return;
     contenedor.innerHTML = '';
-
-    lista.forEach(prod => {
-        const precioFinal = prod.precio_promo ? prod.precio_promo : prod.precio;
-        const itemEnCarrito = carrito.find(p => p.id === prod.id);
-
+    for (let i = 0; i < TARJETAS_DE_CARGA; i++) {
         const col = document.createElement('div');
         col.className = 'col-6 col-md-4 col-lg-3';
-
+        col.setAttribute('aria-hidden', 'true');
         const card = document.createElement('div');
-        card.className = 'card-producto h-100 d-flex flex-column';
-        if (!prod.disponible) card.classList.add('sin-stock');
+        card.className = 'card-producto tarjeta-cargando';
+        ['img-container', 'linea', 'linea linea-corta', 'linea linea-boton'].forEach(clases => {
+            const bloque = document.createElement('div');
+            bloque.className = clases;
+            card.appendChild(bloque);
+        });
+        col.appendChild(card);
+        contenedor.appendChild(col);
+    }
+}
 
-        const imgContainer = document.createElement('div');
-        imgContainer.className = 'img-container';
+function normalizar(texto) {
+    // Minúsculas y sin tildes: "limon" encuentra "Limón".
+    return texto.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
 
-        if (!prod.disponible) {
-            const agotado = document.createElement('div');
-            agotado.className = 'etiqueta-promo etiqueta-sin-stock';
-            agotado.textContent = 'Sin stock';
-            imgContainer.appendChild(agotado);
-        } else if (prod.precio_promo) {
-            const promo = document.createElement('div');
-            promo.className = 'etiqueta-promo';
-            promo.textContent = '¡Promo!';
-            imgContainer.appendChild(promo);
+function productosVisibles() {
+    const palabras = normalizar(textoBuscado).split(/\s+/).filter(Boolean);
+    return productos.filter(prod => {
+        if (categoriaActiva === 'Promos') {
+            if (!prod.precio_promo) return false;
+        } else if (categoriaActiva !== 'Todos' && prod.categoria !== categoriaActiva) {
+            return false;
         }
+        const dondeBuscar = normalizar(prod.nombre + ' ' + prod.categoria);
+        return palabras.every(palabra => dondeBuscar.includes(palabra));
+    });
+}
 
-        if (prod.imagen_url) {
-            const img = document.createElement('img');
-            img.src = prod.imagen_url;
-            img.alt = prod.nombre;
-            img.style.width = '100%';
-            img.style.height = '100%';
-            img.style.objectFit = 'cover';
-            img.style.objectPosition = 'center';
-            imgContainer.appendChild(img);
-        } else {
-            const span = document.createElement('span');
-            span.className = 'text-muted';
-            span.textContent = 'Sin Imagen';
-            imgContainer.appendChild(span);
-        }
+function renderizarCatalogo() {
+    const contenedor = document.getElementById('catalogo-container');
+    const lista = productosVisibles();
+    contenedor.innerHTML = '';
+    zonasDeAccion = new Map();
+    lista.forEach(prod => contenedor.appendChild(crearTarjeta(prod)));
 
-        const body = document.createElement('div');
-        body.className = 'p-3 d-flex flex-column flex-grow-1';
+    const filtrando = textoBuscado.trim() !== '' || categoriaActiva !== 'Todos';
+    mostrar('sin-resultados', lista.length === 0);
+    if (lista.length === 0) {
+        const buscado = textoBuscado.trim();
+        document.getElementById('sin-resultados-texto').textContent = buscado
+            ? 'No hay productos que coincidan con “' + buscado + '”' + (categoriaActiva === 'Todos' ? '.' : ' en esta categoría.')
+            : (categoriaActiva === 'Promos' ? 'Por ahora no hay promos.' : 'Todavía no hay productos en esta categoría.');
+    }
+    document.getElementById('resultado-busqueda').textContent = filtrando
+        ? (lista.length === 1 ? '1 producto' : lista.length + ' productos')
+        : '';
+}
 
-        const title = document.createElement('h6');
-        title.className = 'mb-1 text-light';
-        title.textContent = prod.nombre;
+function crearTarjeta(prod) {
+    const col = document.createElement('div');
+    col.className = 'col-6 col-md-4 col-lg-3';
 
-        const mtAuto = document.createElement('div');
-        mtAuto.className = 'mt-auto';
+    const card = document.createElement('article');
+    card.className = 'card-producto h-100 d-flex flex-column';
+    if (!prod.disponible) card.classList.add('sin-stock');
 
-        if (prod.precio_promo) {
-            const tachado = document.createElement('small');
-            tachado.className = 'text-white-50 text-decoration-line-through mb-1 d-block';
-            tachado.style.fontSize = '0.9em';
-            tachado.textContent = '$' + prod.precio;
-            mtAuto.appendChild(tachado);
-        }
+    const imgContainer = document.createElement('div');
+    imgContainer.className = 'img-container';
 
-        const precioTxt = document.createElement('h5');
-        precioTxt.className = 'text-pediloya mb-3';
-        precioTxt.textContent = '$' + precioFinal;
-        mtAuto.appendChild(precioTxt);
+    if (!prod.disponible) {
+        const agotado = document.createElement('div');
+        agotado.className = 'etiqueta-promo etiqueta-sin-stock';
+        agotado.textContent = 'Sin stock';
+        imgContainer.appendChild(agotado);
+    } else if (prod.precio_promo) {
+        const promo = document.createElement('div');
+        promo.className = 'etiqueta-promo';
+        promo.textContent = '¡Promo!';
+        imgContainer.appendChild(promo);
+    }
+
+    const sinImagen = document.createElement('span');
+    sinImagen.className = 'sin-imagen';
+    sinImagen.textContent = 'Sin imagen';
+
+    if (prod.imagen_url) {
+        const img = document.createElement('img');
+        img.src = fotoOptimizada(prod.imagen_url, ANCHO_FOTO);
+        // El nombre está escrito justo debajo: repetirlo acá sería ruido para un lector de pantalla.
+        img.alt = '';
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        img.onerror = () => img.replaceWith(sinImagen);
+        imgContainer.appendChild(img);
+    } else {
+        imgContainer.appendChild(sinImagen);
+    }
+
+    const body = document.createElement('div');
+    body.className = 'tarjeta-cuerpo d-flex flex-column flex-grow-1';
+
+    const title = document.createElement('h2');
+    title.className = 'tarjeta-nombre';
+    title.textContent = prod.nombre;
+
+    const precios = document.createElement('p');
+    precios.className = 'tarjeta-precios mt-auto';
+    if (prod.precio_promo) {
+        const tachado = document.createElement('s');
+        tachado.className = 'precio-tachado';
+        tachado.textContent = formatearPrecio(prod.precio);
+        precios.appendChild(tachado);
+    }
+    const precioTxt = document.createElement('span');
+    precioTxt.className = 'precio';
+    precioTxt.textContent = formatearPrecio(precioDe(prod));
+    precios.appendChild(precioTxt);
+
+    const zona = document.createElement('div');
+    zona.className = 'tarjeta-accion';
+    zonasDeAccion.set(prod.id, zona);
+    dibujarAccion(prod);
+
+    body.appendChild(title);
+    body.appendChild(precios);
+    body.appendChild(zona);
+    card.appendChild(imgContainer);
+    card.appendChild(body);
+    col.appendChild(card);
+    return col;
+}
+
+// Los botones de una tarjeta: "Agregar", o el contador si ya está en el pedido.
+function dibujarAccion(prod) {
+    const zona = zonasDeAccion.get(prod.id);
+    if (!zona) return; // la tarjeta no está en pantalla (quedó fuera del filtro)
+
+    redibujarConFoco(zona, () => {
+        zona.innerHTML = '';
+        const cantidad = cantidadEnPedido(prod.id);
 
         if (!prod.disponible) {
             const btnAgotado = document.createElement('button');
-            btnAgotado.className = 'btn btn-sm btn-outline-secondary w-100';
+            btnAgotado.type = 'button';
+            btnAgotado.className = 'btn btn-outline-secondary w-100';
             btnAgotado.textContent = 'Sin stock';
             btnAgotado.disabled = true;
-            mtAuto.appendChild(btnAgotado);
-        } else if (itemEnCarrito) {
-            const btnGroup = document.createElement('div');
-            btnGroup.className = 'd-flex justify-content-between align-items-center w-100 bg-black rounded border border-pediloya';
-            
-            const btnRestar = document.createElement('button');
-            btnRestar.className = 'btn btn-sm text-pediloya fw-bold px-3 py-1 border-0';
-            btnRestar.textContent = '-';
-            btnRestar.onclick = () => restarDelCarrito(prod.id);
-
-            const spanCant = document.createElement('span');
-            spanCant.className = 'fw-bold text-light';
-            spanCant.textContent = itemEnCarrito.cantidad;
-
-            const btnSumar = document.createElement('button');
-            btnSumar.className = 'btn btn-sm text-pediloya fw-bold px-3 py-1 border-0';
-            btnSumar.textContent = '+';
-            btnSumar.onclick = () => agregarAlCarrito(prod.id);
-
-            btnGroup.appendChild(btnRestar);
-            btnGroup.appendChild(spanCant);
-            btnGroup.appendChild(btnSumar);
-            mtAuto.appendChild(btnGroup);
+            zona.appendChild(btnAgotado);
+        } else if (cantidad > 0) {
+            zona.appendChild(crearControlCantidad(prod, cantidad));
         } else {
-            const btnAgregar = document.createElement('button');
-            btnAgregar.className = 'btn btn-sm btn-outline-pediloya w-100';
-            btnAgregar.textContent = 'Agregar';
-            btnAgregar.onclick = () => agregarAlCarrito(prod.id);
-            mtAuto.appendChild(btnAgregar);
+            const btnAgregar = crearBotonCantidad(prod, 'sumar', 'Agregar', 'Agregar ' + prod.nombre + ' al pedido');
+            btnAgregar.className = 'btn btn-outline-pediloya w-100';
+            zona.appendChild(btnAgregar);
         }
-
-        body.appendChild(title);
-        body.appendChild(mtAuto);
-        card.appendChild(imgContainer);
-        card.appendChild(body);
-        col.appendChild(card);
-        contenedor.appendChild(col);
     });
+}
+
+function crearBotonCantidad(prod, accion, texto, etiqueta) {
+    const boton = document.createElement('button');
+    boton.type = 'button';
+    boton.textContent = texto;
+    boton.dataset.id = prod.id;
+    boton.dataset.accion = accion;
+    boton.setAttribute('aria-label', etiqueta);
+    boton.onclick = () => cambiarCantidad(prod.id, accion === 'sumar' ? 1 : -1);
+    return boton;
+}
+
+// El contador  − 2 +  que se usa en la tarjeta y en el pedido.
+function crearControlCantidad(prod, cantidad) {
+    const control = document.createElement('div');
+    control.className = 'control-cantidad';
+
+    const btnRestar = crearBotonCantidad(prod, 'restar', '−', 'Quitar uno de ' + prod.nombre);
+    const btnSumar = crearBotonCantidad(prod, 'sumar', '+', 'Agregar otro de ' + prod.nombre);
+
+    const numero = document.createElement('span');
+    numero.className = 'control-numero';
+    numero.textContent = cantidad;
+    numero.setAttribute('aria-label', cantidad + ' en el pedido');
+
+    control.appendChild(btnRestar);
+    control.appendChild(numero);
+    control.appendChild(btnSumar);
+    return control;
 }
 
 function filtrar(categoria) {
-    const btnClickeado = event ? event.currentTarget : null;
-    document.querySelectorAll('#filtros .btn').forEach(btn => {
-        btn.classList.remove('active', 'btn-pediloya');
-        btn.classList.add('btn-outline-pediloya');
+    categoriaActiva = categoria;
+    document.querySelectorAll('#filtros .btn-filtro').forEach(btn => {
+        const activo = btn.dataset.categoria === categoria;
+        btn.classList.toggle('active', activo);
+        btn.setAttribute('aria-pressed', activo);
     });
-    if (btnClickeado) {
-        btnClickeado.classList.remove('btn-outline-pediloya');
-        btnClickeado.classList.add('active', 'btn-pediloya');
-    }
-    if (categoria === 'Todos') {
-        productosMostrados = [...productos];
-    } else if (categoria === 'Promos') {
-        productosMostrados = productos.filter(p => p.precio_promo);
-    } else {
-        productosMostrados = productos.filter(p => p.categoria === categoria);
-    }
-    renderizarCatalogo(productosMostrados);
+    renderizarCatalogo();
+
+    // Si se cambió de categoría estando abajo en la página, vuelve al principio de la lista.
+    const catalogo = document.getElementById('catalogo');
+    if (catalogo.getBoundingClientRect().top < 0) catalogo.scrollIntoView();
 }
 
-function agregarAlCarrito(id) {
-    const itemExistente = carrito.find(p => p.id === id);
-    if (itemExistente) {
-        itemExistente.cantidad++;
-    } else {
-        const prod = productos.find(p => p.id === id);
-        if (!prod) return;
-        carrito.push({ ...prod, precioVenta: (prod.precio_promo || prod.precio), cantidad: 1 });
-    }
-    actualizarCarrito();
-    renderizarCatalogo(productosMostrados);
+function limpiarBusqueda() {
+    textoBuscado = '';
+    document.getElementById('buscador').value = '';
+    filtrar('Todos');
 }
 
-function restarDelCarrito(id) {
-    const item = carrito.find(p => p.id === id);
-    if (item) {
-        if (item.cantidad > 1) item.cantidad--;
-        else carrito = carrito.filter(p => p.id !== id);
-    }
+// --- Pedido -----------------------------------------------------------------
+
+function cantidadEnPedido(id) {
+    const item = carrito.find(i => i.id === id);
+    return item ? item.cantidad : 0;
+}
+
+function cambiarCantidad(id, pasos) {
+    const prod = buscarProducto(id);
+    if (!prod || !prod.disponible) return;
+
+    const item = carrito.find(i => i.id === id);
+    if (item) item.cantidad += pasos;
+    else if (pasos > 0) carrito.push({ id: id, cantidad: pasos });
+    carrito = carrito.filter(i => i.cantidad > 0);
+
+    guardar(CLAVE_CARRITO, carrito);
+    dibujarAccion(prod);
     actualizarCarrito();
-    renderizarCatalogo(productosMostrados);
 }
 
 function eliminarDelCarrito(id) {
-    carrito = carrito.filter(p => p.id !== id);
+    cambiarCantidad(id, -cantidadEnPedido(id));
+}
+
+function vaciarPedido() {
+    const quitados = carrito.map(item => buscarProducto(item.id));
+    carrito = [];
+    guardar(CLAVE_CARRITO, carrito);
+    quitados.forEach(dibujarAccion);
     actualizarCarrito();
-    renderizarCatalogo(productosMostrados);
+}
+
+function totalDelPedido() {
+    return carrito.reduce((suma, item) => suma + precioDe(buscarProducto(item.id)) * item.cantidad, 0);
 }
 
 function actualizarCarrito() {
-    const contenedor = document.getElementById('carrito-items');
-    const totalElement = document.getElementById('carrito-total');
-    const countElement = document.getElementById('cart-count'); 
-    const btnFlotante = document.getElementById('btn-flotante-carrito');
-    const countFlotante = document.getElementById('cart-count-flotante');
-    
-    if(!contenedor) return;
-    contenedor.innerHTML = '';
-    let total = 0;
+    const lista = document.getElementById('carrito-items');
+    const teniaFoco = lista.contains(document.activeElement);
     let cantidadTotalArticulos = 0;
 
-    carrito.forEach(item => {
-        const subtotal = item.precioVenta * item.cantidad;
-        total += subtotal;
-        cantidadTotalArticulos += item.cantidad;
-
-        const div = document.createElement('div');
-        div.className = 'd-flex justify-content-between align-items-center mb-2 bg-black p-2 rounded border border-secondary border-opacity-25';
-        
-        const infoDiv = document.createElement('div');
-        infoDiv.style.flex = '1';
-        infoDiv.style.paddingRight = '10px';
-        
-        const title = document.createElement('small');
-        title.className = 'd-block lh-sm mb-1';
-        title.textContent = item.nombre;
-        
-        const price = document.createElement('span');
-        price.className = 'text-pediloya fw-bold';
-        price.textContent = '$' + subtotal;
-        
-        infoDiv.appendChild(title);
-        infoDiv.appendChild(price);
-        
-        const controlsDiv = document.createElement('div');
-        controlsDiv.className = 'd-flex align-items-center gap-2';
-        
-        const btnMinus = document.createElement('button');
-        btnMinus.className = 'btn btn-sm btn-outline-light py-0 px-2';
-        btnMinus.textContent = '-';
-        btnMinus.onclick = () => restarDelCarrito(item.id);
-        
-        const spanQty = document.createElement('span');
-        spanQty.className = 'fw-bold text-light';
-        spanQty.textContent = item.cantidad;
-        
-        const btnPlus = document.createElement('button');
-        btnPlus.className = 'btn btn-sm btn-pediloya py-0 px-2 text-black';
-        btnPlus.textContent = '+';
-        btnPlus.onclick = () => agregarAlCarrito(item.id);
-        
-        const btnDel = document.createElement('button');
-        btnDel.className = 'btn btn-sm btn-danger py-0 px-2 ms-2';
-        btnDel.textContent = 'X';
-        btnDel.onclick = () => eliminarDelCarrito(item.id);
-        
-        controlsDiv.appendChild(btnMinus);
-        controlsDiv.appendChild(spanQty);
-        controlsDiv.appendChild(btnPlus);
-        controlsDiv.appendChild(btnDel);
-        
-        div.appendChild(infoDiv);
-        div.appendChild(controlsDiv);
-        contenedor.appendChild(div);
+    redibujarConFoco(lista, () => {
+        lista.innerHTML = '';
+        carrito.forEach(item => {
+            const prod = buscarProducto(item.id);
+            cantidadTotalArticulos += item.cantidad;
+            lista.appendChild(crearItemDelPedido(prod, item.cantidad));
+        });
     });
 
-    if(totalElement) totalElement.textContent = '$' + total;
-    if(countElement) countElement.textContent = cantidadTotalArticulos;
-    if(countFlotante) countFlotante.textContent = cantidadTotalArticulos;
+    const total = formatearPrecio(totalDelPedido());
+    document.getElementById('carrito-total').textContent = total;
+    document.getElementById('barra-total').textContent = total;
+    document.getElementById('cart-count').textContent = cantidadTotalArticulos;
+    document.getElementById('barra-cantidad').textContent = cantidadTotalArticulos;
 
-    if (btnFlotante) {
-        if (carrito.length > 0) btnFlotante.classList.remove('d-none');
-        else btnFlotante.classList.add('d-none');
-    }
+    const vacio = carrito.length === 0;
+    mostrar('pedido-vacio', vacio);
+    mostrar('pedido-lleno', !vacio);
+    mostrar('barra-pedido', !vacio);
+    // Se quitó el último producto desde el panel: el foco pasa a "Ver productos".
+    if (vacio && teniaFoco) document.querySelector('#pedido-vacio button').focus();
 }
 
-function enviarPedidoWhatsApp() {
-    if (carrito.length === 0) return;
+function crearItemDelPedido(prod, cantidad) {
+    const item = document.createElement('li');
+    item.className = 'pedido-item';
+
+    const foto = document.createElement('div');
+    foto.className = 'pedido-foto';
+    if (prod.imagen_url) {
+        const img = document.createElement('img');
+        img.src = fotoOptimizada(prod.imagen_url, 120);
+        img.alt = '';
+        img.onerror = () => img.remove();
+        foto.appendChild(img);
+    }
+
+    const info = document.createElement('div');
+    info.className = 'pedido-info';
+
+    const nombre = document.createElement('p');
+    nombre.className = 'pedido-nombre';
+    nombre.textContent = prod.nombre;
+
+    const unidad = document.createElement('p');
+    unidad.className = 'pedido-unidad';
+    unidad.textContent = formatearPrecio(precioDe(prod)) + ' c/u';
+
+    const renglon = document.createElement('div');
+    renglon.className = 'd-flex justify-content-between align-items-center';
+
+    const subtotal = document.createElement('span');
+    subtotal.className = 'precio';
+    subtotal.textContent = formatearPrecio(precioDe(prod) * cantidad);
+
+    renglon.appendChild(crearControlCantidad(prod, cantidad));
+    renglon.appendChild(subtotal);
+
+    info.appendChild(nombre);
+    info.appendChild(unidad);
+    info.appendChild(renglon);
+
+    const btnQuitar = document.createElement('button');
+    btnQuitar.type = 'button';
+    btnQuitar.className = 'btn-close pedido-quitar';
+    btnQuitar.dataset.id = prod.id;
+    btnQuitar.dataset.accion = 'quitar';
+    btnQuitar.setAttribute('aria-label', 'Quitar ' + prod.nombre + ' del pedido');
+    btnQuitar.onclick = () => eliminarDelCarrito(prod.id);
+
+    item.appendChild(foto);
+    item.appendChild(info);
+    item.appendChild(btnQuitar);
+    return item;
+}
+
+// --- Datos de entrega -------------------------------------------------------
+
+const CAMPOS_ENTREGA = ['entrega-nombre', 'entrega-direccion', 'entrega-indicaciones'];
+
+function valorDe(id) {
+    return document.getElementById(id).value.trim();
+}
+
+function formaDePagoElegida() {
+    const marcada = document.querySelector('input[name="entrega-pago"]:checked');
+    return marcada ? marcada.value : '';
+}
+
+// Completa el formulario con lo que el cliente puso la última vez, para que
+// en el próximo pedido no tenga que escribir todo de nuevo.
+function prepararFormularioEntrega() {
+    const guardada = leerGuardado(CLAVE_ENTREGA, {});
+    CAMPOS_ENTREGA.forEach(id => {
+        const campo = document.getElementById(id);
+        campo.value = guardada[id] || '';
+        campo.addEventListener('input', () => {
+            campo.classList.remove('is-invalid');
+            guardarEntrega();
+        });
+    });
+
+    const pagos = document.getElementById('entrega-pagos');
+    NEGOCIO.formasDePago.forEach((forma, posicion) => {
+        const opcion = document.createElement('input');
+        opcion.type = 'radio';
+        opcion.className = 'btn-check';
+        opcion.name = 'entrega-pago';
+        opcion.id = 'entrega-pago-' + posicion;
+        opcion.value = forma;
+        opcion.checked = guardada.pago ? guardada.pago === forma : posicion === 0;
+
+        const etiqueta = document.createElement('label');
+        etiqueta.className = 'btn btn-outline-pediloya';
+        etiqueta.htmlFor = opcion.id;
+        etiqueta.textContent = forma;
+
+        pagos.appendChild(opcion);
+        pagos.appendChild(etiqueta);
+    });
+    // Por si la forma guardada ya no se ofrece.
+    if (!formaDePagoElegida() && pagos.firstElementChild) pagos.firstElementChild.checked = true;
+
+    pagos.addEventListener('change', () => {
+        actualizarPagaCon();
+        guardarEntrega();
+    });
+    document.getElementById('entrega-paga-con').addEventListener('input', evento => {
+        evento.target.classList.remove('is-invalid');
+    });
+    actualizarPagaCon();
+}
+
+// "¿Con cuánto pagás?" solo tiene sentido si paga en efectivo.
+function actualizarPagaCon() {
+    mostrar('grupo-paga-con', formaDePagoElegida() === 'Efectivo');
+}
+
+function guardarEntrega() {
+    const datos = { pago: formaDePagoElegida() };
+    CAMPOS_ENTREGA.forEach(id => { datos[id] = valorDe(id); });
+    guardar(CLAVE_ENTREGA, datos);
+}
+
+// Suma (o quita) la ubicación actual del cliente. Solo se usa para poner un
+// link al mapa en el mensaje del pedido: no se guarda ni se manda a otro lado.
+function alternarUbicacion() {
+    const texto = document.getElementById('btn-ubicacion-texto');
+    const estado = document.getElementById('ubicacion-estado');
+
+    if (ubicacion) {
+        ubicacion = null;
+        texto.textContent = 'Sumar mi ubicación actual';
+        estado.textContent = '';
+        return;
+    }
+    if (!navigator.geolocation) {
+        estado.textContent = 'Este navegador no permite compartir la ubicación. Con la dirección alcanza.';
+        return;
+    }
+
+    estado.textContent = 'Buscando tu ubicación…';
+    navigator.geolocation.getCurrentPosition(
+        posicion => {
+            ubicacion = { latitud: posicion.coords.latitude, longitud: posicion.coords.longitude };
+            texto.textContent = 'Quitar mi ubicación';
+            estado.textContent = 'Listo: el pedido va a llevar un link con tu ubicación en el mapa.';
+        },
+        () => {
+            estado.textContent = 'No pudimos obtener tu ubicación. Revisá el permiso del navegador o seguí solo con la dirección.';
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+    );
+}
+
+// --- Envío por WhatsApp -----------------------------------------------------
+
+// Marca en rojo lo que falta y devuelve true si se puede enviar.
+function validarEntrega() {
+    const nombre = document.getElementById('entrega-nombre');
+    const direccion = document.getElementById('entrega-direccion');
+    const pagaCon = document.getElementById('entrega-paga-con');
+
+    nombre.classList.toggle('is-invalid', !nombre.value.trim());
+    direccion.classList.toggle('is-invalid', !direccion.value.trim());
+    // Opcional, pero si lo completa tiene que alcanzar para pagar el pedido.
+    const pagaConInvalido = formaDePagoElegida() === 'Efectivo'
+        && pagaCon.value.trim() !== ''
+        && !(Number(pagaCon.value) >= totalDelPedido());
+    pagaCon.classList.toggle('is-invalid', pagaConInvalido);
+
+    const primerError = document.querySelector('#form-entrega .is-invalid');
+    if (primerError) primerError.focus();
+    return !primerError;
+}
+
+function armarMensaje() {
     let mensaje = '¡Hola PediloYa! Quiero hacer este pedido:\n\n';
-    let total = 0;
     carrito.forEach(item => {
-        const subtotal = item.precioVenta * item.cantidad;
-        mensaje += '*' + item.cantidad + 'x* ' + item.nombre + ' - $' + subtotal + '\n';
-        total += subtotal;
+        const prod = buscarProducto(item.id);
+        mensaje += '*' + item.cantidad + 'x* ' + prod.nombre + ' - ' + formatearPrecio(precioDe(prod) * item.cantidad) + '\n';
     });
-    mensaje += '\n*Total a pagar: $' + total + '*\n\n¿Me confirmas el tiempo de demora y cómo te lo pago?';
-    window.open('https://wa.me/5493885830234?text=' + encodeURIComponent(mensaje), '_blank');
+    mensaje += '\n*Total: ' + formatearPrecio(totalDelPedido()) + '*\n';
+
+    mensaje += '\n*Datos de entrega*\n';
+    mensaje += 'Nombre: ' + valorDe('entrega-nombre') + '\n';
+    mensaje += 'Dirección: ' + valorDe('entrega-direccion') + '\n';
+    if (valorDe('entrega-indicaciones')) mensaje += 'Indicaciones: ' + valorDe('entrega-indicaciones') + '\n';
+    if (ubicacion) mensaje += 'Ubicación: https://www.google.com/maps?q=' + ubicacion.latitud + ',' + ubicacion.longitud + '\n';
+
+    const pago = formaDePagoElegida();
+    if (pago) {
+        const pagaCon = valorDe('entrega-paga-con');
+        mensaje += 'Pago: ' + pago;
+        if (pago === 'Efectivo' && pagaCon) mensaje += ' (pago con ' + formatearPrecio(pagaCon) + ')';
+        mensaje += '\n';
+    }
+
+    mensaje += '\n¿Me confirmás el tiempo de demora?';
+    return mensaje;
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    const carritoOffcanvas = document.getElementById('carritoOffcanvas');
-    const btnFlotante = document.getElementById('btn-flotante-carrito');
-    if (carritoOffcanvas && btnFlotante) {
-        carritoOffcanvas.addEventListener('show.bs.offcanvas', () => { btnFlotante.style.display = 'none'; });
-        carritoOffcanvas.addEventListener('hidden.bs.offcanvas', () => { if (carrito.length > 0) btnFlotante.style.display = 'block'; });
-    }
-});
+function enviarPedidoWhatsApp(evento) {
+    evento.preventDefault();
+    if (carrito.length === 0) return;
+    if (!validarEntrega()) return;
+    guardarEntrega();
+    window.open('https://wa.me/' + NEGOCIO.whatsapp + '?text=' + encodeURIComponent(armarMensaje()), '_blank', 'noopener');
+}

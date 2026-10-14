@@ -109,6 +109,18 @@ Desde ese momento el catálogo lee de Supabase y la planilla de Google deja de u
 - **Categorías**: son las tres del formulario. Para sumar una hay que agregarla en dos
   lugares: el botón de filtro en `index.html` y la opción del desplegable en `admin.html`.
 
+## Datos del negocio
+
+Están en `js/config.js`, en `NEGOCIO`:
+
+- `whatsapp`: el número que recibe los pedidos, con código de país y sin `+` ni espacios.
+- `formasDePago`: las opciones que ve el cliente al armar el pedido. Si figura `Efectivo`,
+  el formulario pregunta además con cuánto paga, para llevar el vuelto.
+
+Si el sitio se muda a un dominio propio, hay que cambiar las dos direcciones `og:url` y
+`og:image` del `<head>` de `index.html`: son las que usan WhatsApp e Instagram para armar
+la vista previa del link.
+
 ## Probar en tu PC sin tocar los datos reales
 
 Con `js/config.js` vacío, el sitio abierto en tu PC funciona en **modo prueba**: el panel

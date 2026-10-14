@@ -10,3 +10,11 @@ const SUPABASE = {
     // La clave "publishable" (empieza con sb_publishable_) o la "anon".
     clave: 'sb_publishable_-U7aKq69jjHxOdI7po2cfQ_8MD3udOq'
 };
+
+// Datos del negocio que usa el catálogo.
+const NEGOCIO = {
+    // Número que recibe los pedidos: con código de país, sin "+" ni espacios.
+    whatsapp: '5493885830234',
+    // Formas de pago que se ofrecen al armar el pedido.
+    formasDePago: ['Efectivo', 'Transferencia']
+};

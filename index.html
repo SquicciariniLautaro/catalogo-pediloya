@@ -1,128 +1,236 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PediloYa! - Catálogo</title>
-    
-    <!-- Bootstrap CSS CDN (Enlace corregido) -->
+    <title>PediloYa! — Delivery de bebidas y kiosco</title>
+    <meta name="description" content="Bebidas, kiosco y promos con delivery. Elegí lo que querés, armá tu pedido y envialo por WhatsApp.">
+    <meta name="theme-color" content="#000000">
+
+    <!-- Cómo se ve el link al compartirlo por WhatsApp o Instagram -->
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="es_AR">
+    <meta property="og:title" content="PediloYa! — Delivery de bebidas y kiosco">
+    <meta property="og:description" content="Elegí lo que querés, armá tu pedido y envialo por WhatsApp.">
+    <meta property="og:url" content="https://squicciarinilautaro.github.io/catalogo-pediloya/">
+    <meta property="og:image" content="https://squicciarinilautaro.github.io/catalogo-pediloya/img/compartir.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <link rel="icon" href="img/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="img/icono-180.png">
+
+    <!-- La animación de entrada se muestra una sola vez por visita -->
+    <script>
+        try {
+            if (sessionStorage.getItem('pediloya-visto')) document.documentElement.classList.add('sin-preloader');
+            sessionStorage.setItem('pediloya-visto', '1');
+        } catch (e) {}
+    </script>
+
+    <!-- Bootstrap CSS CDN -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
-    
-    <!-- Google Fonts -->
+
+    <!-- Google Fonts: solo los pesos que se usan -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
-    
-    <!-- Tus estilos -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+
     <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="bg-dark text-light">
+<body>
+    <a class="visually-hidden-focusable saltar" href="#catalogo">Saltar a los productos</a>
 
-<!-- PANTALLA DE CARGA (PRELOADER) -->
-    <div id="preloader" class="preloader">
-        
+    <!-- ANIMACIÓN DE ENTRADA: se oculta sola por CSS, no depende de JavaScript -->
+    <div class="preloader" aria-hidden="true">
         <div class="moto-animada">
-            <img src="img/moto-sin-fondo.png" alt="Moto Delivery" width="120">
+            <img src="img/moto-sin-fondo.png" alt="" width="120">
         </div>
-
-        <div id="logo-preloader" class="logo-oculto fw-bold fs-1">
+        <div class="logo-preloader fw-bold fs-1">
             <span class="bg-black text-pediloya px-2 py-1 rounded-circle me-1">Ya!</span> <span class="text-black">PediloYa</span>
         </div>
     </div>
 
-    <!-- Navbar Minimalista -->
-    <nav class="navbar navbar-dark bg-black sticky-top shadow-sm">
+    <header class="navbar barra-superior sticky-top">
         <div class="container d-flex justify-content-between">
-            <a class="navbar-brand fw-bold text-pediloya" href="#">
+            <a class="navbar-brand fw-bold text-pediloya m-0" href="./">
                 <span class="bg-pediloya text-black px-2 py-1 rounded-circle me-1">Ya!</span> PediloYa
             </a>
-            <button class="btn btn-outline-pediloya" type="button" data-bs-toggle="offcanvas" data-bs-target="#carritoOffcanvas">
-                Mi Pedido <span id="cart-count" class="badge bg-pediloya text-black ms-1">0</span>
+            <button class="btn btn-outline-pediloya d-flex align-items-center gap-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#carritoOffcanvas" aria-controls="carritoOffcanvas">
+                <svg class="icono" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1a2.5 2.5 0 0 1 2.5 2.5V4h-5v-.5A2.5 2.5 0 0 1 8 1m3.5 3v-.5a3.5 3.5 0 1 0-7 0V4H1v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V4zM2 5h12v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z"/></svg>
+                Mi pedido <span id="cart-count" class="badge bg-pediloya text-black">0</span>
             </button>
         </div>
-    </nav>
+    </header>
 
-    <div class="container my-4">
-        <!-- Filtros -->
-        <div class="d-flex gap-2 overflow-auto pb-2 mb-4" id="filtros">
-            <button class="btn btn-pediloya active" onclick="filtrar('Todos')">Todos</button>
-            <button class="btn btn-outline-pediloya" onclick="filtrar('Promos')">Promos</button>
-            <button class="btn btn-outline-pediloya" onclick="filtrar('Con Alcohol')">Bebidas</button>
-            <button class="btn btn-outline-pediloya" onclick="filtrar('Sin Alcohol')">Sin Alcohol</button>
-            <button class="btn btn-outline-pediloya" onclick="filtrar('Kiosco')">Kiosco</button>
+    <main>
+        <section class="portada container">
+            <h1 class="fw-bold">Tu pedido, <span class="text-pediloya">ya.</span></h1>
+            <p class="portada-bajada">Bebidas, kiosco y promos. Elegí lo que querés y envianos el pedido por WhatsApp.</p>
+
+            <div class="buscador">
+                <svg class="icono buscador-lupa" viewBox="0 0 16 16" aria-hidden="true"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/></svg>
+                <input type="search" id="buscador" class="form-control" placeholder="Buscar: fernet, coca, hielo…" aria-label="Buscar productos" autocomplete="off" enterkeyhint="search">
+            </div>
+        </section>
+
+        <!-- Filtros: quedan pegados arriba al bajar -->
+        <nav class="filtros-barra sticky-top" aria-label="Categorías">
+            <div class="container">
+                <div class="filtros" id="filtros">
+                    <button type="button" class="btn-filtro active" data-categoria="Todos" aria-pressed="true">Todos</button>
+                    <button type="button" class="btn-filtro" data-categoria="Promos" aria-pressed="false">Promos</button>
+                    <button type="button" class="btn-filtro" data-categoria="Con Alcohol" aria-pressed="false">Bebidas</button>
+                    <button type="button" class="btn-filtro" data-categoria="Sin Alcohol" aria-pressed="false">Sin Alcohol</button>
+                    <button type="button" class="btn-filtro" data-categoria="Kiosco" aria-pressed="false">Kiosco</button>
+                </div>
+            </div>
+        </nav>
+
+        <section id="catalogo" class="container catalogo" aria-label="Productos">
+            <!-- Para lectores de pantalla: cuántos productos quedaron después de buscar o filtrar -->
+            <p id="resultado-busqueda" class="visually-hidden" role="status"></p>
+
+            <div class="row g-3" id="catalogo-container">
+                <!-- Las tarjetas se inyectan con JavaScript -->
+            </div>
+
+            <div id="sin-resultados" class="estado-vacio d-none">
+                <p class="h5">No encontramos nada</p>
+                <p id="sin-resultados-texto" class="texto-suave"></p>
+                <button type="button" id="btn-limpiar-busqueda" class="btn btn-outline-pediloya">Ver todos los productos</button>
+            </div>
+
+            <div id="error-carga" class="estado-vacio d-none">
+                <p class="h5">No pudimos cargar los productos</p>
+                <p class="texto-suave">Revisá tu conexión y probá de nuevo.</p>
+                <button type="button" id="btn-reintentar" class="btn btn-pediloya">Reintentar</button>
+            </div>
+
+            <noscript>
+                <p class="estado-vacio">Para ver el catálogo necesitás activar JavaScript en tu navegador.</p>
+            </noscript>
+        </section>
+    </main>
+
+    <footer class="pie">
+        <div class="container">
+            <p class="h4 text-pediloya fw-bold mb-3">
+                <span class="bg-pediloya text-black px-2 py-1 rounded-circle me-1 pie-logo">Ya!</span> PediloYa
+            </p>
+
+            <div class="d-flex flex-wrap justify-content-center gap-2 mb-4">
+                <a href="https://www.instagram.com/eldeliverydeperico" target="_blank" rel="noopener" class="btn btn-outline-pediloya rounded-pill px-4 d-inline-flex align-items-center gap-2">
+                    <svg class="icono" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.917 3.917 0 0 0-1.417.923A3.927 3.927 0 0 0 .42 2.76C.222 3.268.087 3.85.048 4.7.01 5.555 0 5.827 0 8.001c0 2.172.01 2.444.048 3.297.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.298-.048c.851-.04 1.434-.174 1.943-.372a3.916 3.916 0 0 0 1.416-.923c.445-.445.718-.891.923-1.417.197-.509.332-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.445-.048-3.299c-.04-.851-.175-1.433-.372-1.941a3.926 3.926 0 0 0-.923-1.417A3.911 3.911 0 0 0 13.24.42c-.51-.198-1.092-.333-1.943-.372C10.443.01 10.172 0 7.998 0h.003zm-.717 1.442h.718c2.136 0 2.389.007 3.232.046.78.035 1.204.166 1.486.275.373.145.64.319.92.599.28.28.453.546.598.92.11.281.24.705.275 1.485.039.843.047 1.096.047 3.231s-.008 2.389-.047 3.232c-.035.78-.166 1.203-.275 1.485a2.47 2.47 0 0 1-.599.919c-.28.28-.546.453-.92.598-.28.11-.704.24-1.485.276-.843.038-1.096.047-3.232.047s-2.39-.009-3.233-.047c-.78-.036-1.203-.166-1.485-.276a2.478 2.478 0 0 1-.92-.598 2.48 2.48 0 0 1-.6-.92c-.109-.281-.24-.705-.275-1.485-.038-.843-.046-1.096-.046-3.233 0-2.136.008-2.388.046-3.231.036-.78.166-1.204.276-1.486.145-.373.319-.64.599-.92.28-.28.546-.453.92-.598.282-.11.705-.24 1.485-.276.738-.034 1.024-.044 2.515-.045v.002zm4.988 1.328a.96.96 0 1 0 0 1.92.96.96 0 0 0 0-1.92zm-4.27 1.122a4.109 4.109 0 1 0 0 8.217 4.109 4.109 0 0 0 0-8.217zm0 1.441a2.667 2.667 0 1 1 0 5.334 2.667 2.667 0 0 1 0-5.334z"/></svg>
+                    Seguinos en Instagram
+                </a>
+                <a id="pie-whatsapp" href="#" target="_blank" rel="noopener" class="btn btn-outline-pediloya rounded-pill px-4 d-inline-flex align-items-center gap-2">
+                    <svg class="icono" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232"/></svg>
+                    Escribinos
+                </a>
+            </div>
+
+            <p class="pie-legal">Beber con moderación. Prohibida su venta a menores de 18 años.</p>
+
+            <div class="texto-suave small">
+                <p class="mb-1">&copy; 2026 PediloYa. Todos los derechos reservados.</p>
+                <p class="mb-0">
+                    Realizado por
+                    <a href="https://www.instagram.com/lambdasoluciones" target="_blank" rel="noopener" class="text-pediloya text-decoration-none fw-bold">λ Lambda Soluciones</a>
+                </p>
+            </div>
         </div>
+    </footer>
 
-        <!-- Grilla de Productos -->
-        <div class="row g-4" id="catalogo-container">
-            <!-- Las tarjetas se inyectarán con JavaScript -->
+    <!-- PEDIDO (panel lateral) -->
+    <div class="offcanvas offcanvas-end pedido" tabindex="-1" id="carritoOffcanvas" aria-labelledby="pedido-titulo">
+        <div class="offcanvas-header">
+            <h2 class="offcanvas-title h5" id="pedido-titulo">Tu pedido</h2>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Cerrar"></button>
+        </div>
+        <div class="offcanvas-body">
+
+            <div id="pedido-vacio" class="estado-vacio">
+                <p class="h5">Tu pedido está vacío</p>
+                <p class="texto-suave">Agregá productos del catálogo y los vas a ver acá.</p>
+                <button type="button" class="btn btn-pediloya" data-bs-dismiss="offcanvas">Ver productos</button>
+            </div>
+
+            <div id="pedido-lleno" class="d-none">
+                <ul id="carrito-items" class="list-unstyled mb-2">
+                    <!-- Los productos del pedido se inyectan con JavaScript -->
+                </ul>
+                <div class="text-end">
+                    <button type="button" id="btn-vaciar" class="btn btn-sm btn-link texto-suave">Vaciar pedido</button>
+                </div>
+
+                <p class="pedido-total">
+                    <span>Total</span> <span id="carrito-total" class="text-pediloya">$0</span>
+                </p>
+
+                <form id="form-entrega" novalidate>
+                    <h3 class="h6 mb-3">Datos de entrega</h3>
+
+                    <div class="mb-3">
+                        <label for="entrega-nombre" class="form-label">Tu nombre</label>
+                        <input type="text" class="form-control" id="entrega-nombre" maxlength="60" autocomplete="name" required>
+                        <div class="invalid-feedback">Decinos tu nombre para saber a quién le llevamos el pedido.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="entrega-direccion" class="form-label">Dirección</label>
+                        <input type="text" class="form-control" id="entrega-direccion" maxlength="120" placeholder="Calle, número y barrio" autocomplete="street-address" required>
+                        <div class="invalid-feedback">Necesitamos la dirección para llevarte el pedido.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="entrega-indicaciones" class="form-label">Indicaciones para el repartidor <span class="texto-suave">(opcional)</span></label>
+                        <textarea class="form-control" id="entrega-indicaciones" rows="2" maxlength="250" placeholder="Entre qué calles, color de la casa, piso y depto, si no anda el timbre…"></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <button type="button" id="btn-ubicacion" class="btn btn-sm btn-outline-pediloya d-inline-flex align-items-center gap-2">
+                            <svg class="icono" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 16s6-5.686 6-10A6 6 0 0 0 2 6c0 4.314 6 10 6 10m0-7a3 3 0 1 1 0-6 3 3 0 0 1 0 6"/></svg>
+                            <span id="btn-ubicacion-texto">Sumar mi ubicación actual</span>
+                        </button>
+                        <div id="ubicacion-estado" class="form-text" role="status"></div>
+                    </div>
+
+                    <fieldset class="mb-3">
+                        <legend class="form-label">Forma de pago</legend>
+                        <div id="entrega-pagos" class="d-flex flex-wrap gap-2">
+                            <!-- Las opciones salen de js/config.js -->
+                        </div>
+                    </fieldset>
+
+                    <div id="grupo-paga-con" class="mb-3">
+                        <label for="entrega-paga-con" class="form-label">¿Con cuánto pagás? <span class="texto-suave">(opcional, para llevarte el vuelto)</span></label>
+                        <div class="input-group has-validation">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" id="entrega-paga-con" min="1" step="1" inputmode="numeric">
+                            <div class="invalid-feedback">Tiene que ser igual o mayor al total del pedido.</div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-whatsapp w-100 fw-bold py-3 d-flex align-items-center justify-content-center gap-2">
+                        <svg class="icono" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232"/></svg>
+                        Enviar pedido por WhatsApp
+                    </button>
+                    <p class="form-text text-center mb-0">Se abre WhatsApp con el pedido escrito. Solo te falta tocar enviar.</p>
+                </form>
+            </div>
         </div>
     </div>
 
-    <!-- Offcanvas Carrito (Panel lateral) -->
-    <div class="offcanvas offcanvas-end bg-dark text-light" tabindex="-1" id="carritoOffcanvas">
-        <div class="offcanvas-header border-bottom border-secondary">
-            <h5 class="offcanvas-title">Tu Pedido</h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
-        </div>
-        <div class="offcanvas-body d-flex flex-column">
-            <!-- AQUÍ SE INYECTAN LOS ITEMS -->
-            <div id="carrito-items" class="flex-grow-1 overflow-auto">
-                <!-- Items del carrito -->
-            </div>
-            
-            <div class="border-top border-secondary pt-3 mt-3">
-                <!-- TOTAL -->
-                <h4 class="d-flex justify-content-between mb-3">
-                    Total: <span id="carrito-total" class="text-pediloya">$0</span>
-                </h4>
-                
-                <!-- Botón de WhatsApp -->
-                <button class="btn btn-whatsapp w-100 fw-bold py-2" onclick="enviarPedidoWhatsApp()">
-                    Enviar Pedido por WhatsApp
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Botón Flotante del Carrito -->
-    <button id="btn-flotante-carrito" class="btn btn-pediloya btn-flotante d-none shadow" type="button" data-bs-toggle="offcanvas" data-bs-target="#carritoOffcanvas">
-        Ver Pedido (<span id="cart-count-flotante">0</span>)
+    <!-- Barra fija con el resumen del pedido -->
+    <button id="barra-pedido" class="barra-pedido d-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#carritoOffcanvas" aria-controls="carritoOffcanvas">
+        <span><span id="barra-cantidad" class="barra-cantidad">0</span> Ver pedido</span>
+        <span id="barra-total" class="fw-bold">$0</span>
     </button>
 
-    <!-- Bootstrap JS CDN (Enlace corregido) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
     <script src="js/config.js"></script>
     <script src="js/api.js"></script>
     <script src="js/app.js"></script>
 </body>
-
-<!-- Footer -->
-<footer class="bg-black text-center py-5 mt-5 border-top border-secondary border-opacity-25">
-        <div class="container">
-            <!-- Marca del cliente -->
-            <h4 class="text-pediloya fw-bold mb-3">
-                <span class="bg-pediloya text-black px-2 py-1 rounded-circle me-1" style="font-size: 0.8em;">Ya!</span> PediloYa
-            </h4>
-            
-            <!-- Botón Instagram Cliente -->
-            <a href="https://www.instagram.com/eldeliverydeperico?utm_source=ig_web_button_share_sheet&stkn=ZDNlZDc0MzIxNw==" target="_blank" class="btn btn-outline-pediloya rounded-pill px-4 py-2 mb-5">
-                <!-- Icono de Instagram en SVG -->
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="me-2" style="margin-top: -3px;" viewBox="0 0 16 16">
-                    <path d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.917 3.917 0 0 0-1.417.923A3.927 3.927 0 0 0 .42 2.76C.222 3.268.087 3.85.048 4.7.01 5.555 0 5.827 0 8.001c0 2.172.01 2.444.048 3.297.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.298-.048c.851-.04 1.434-.174 1.943-.372a3.916 3.916 0 0 0 1.416-.923c.445-.445.718-.891.923-1.417.197-.509.332-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.445-.048-3.299c-.04-.851-.175-1.433-.372-1.941a3.926 3.926 0 0 0-.923-1.417A3.911 3.911 0 0 0 13.24.42c-.51-.198-1.092-.333-1.943-.372C10.443.01 10.172 0 7.998 0h.003zm-.717 1.442h.718c2.136 0 2.389.007 3.232.046.78.035 1.204.166 1.486.275.373.145.64.319.92.599.28.28.453.546.598.92.11.281.24.705.275 1.485.039.843.047 1.096.047 3.231s-.008 2.389-.047 3.232c-.035.78-.166 1.203-.275 1.485a2.47 2.47 0 0 1-.599.919c-.28.28-.546.453-.92.598-.28.11-.704.24-1.485.276-.843.038-1.096.047-3.232.047s-2.39-.009-3.233-.047c-.78-.036-1.203-.166-1.485-.276a2.478 2.478 0 0 1-.92-.598 2.48 2.48 0 0 1-.6-.92c-.109-.281-.24-.705-.275-1.485-.038-.843-.046-1.096-.046-3.233 0-2.136.008-2.388.046-3.231.036-.78.166-1.204.276-1.486.145-.373.319-.64.599-.92.28-.28.546-.453.92-.598.282-.11.705-.24 1.485-.276.738-.034 1.024-.044 2.515-.045v.002zm4.988 1.328a.96.96 0 1 0 0 1.92.96.96 0 0 0 0-1.92zm-4.27 1.122a4.109 4.109 0 1 0 0 8.217 4.109 4.109 0 0 0 0-8.217zm0 1.441a2.667 2.667 0 1 1 0 5.334 2.667 2.667 0 0 1 0-5.334z"/>
-                </svg>
-                Seguinos en Instagram
-            </a>
-
-            <!-- Copyright y Firma del Desarrollador -->
-            <div class="text-secondary small">
-                <p class="mb-1">&copy; 2026 PediloYa. Todos los derechos reservados.</p>
-                <p class="mb-0">
-                    Realizado por 
-                    <a href="https://www.instagram.com/lambdasoluciones?utm_source=ig_web_button_share_sheet&stkn=ZDNlZDc0MzIxNw==" target="_blank" class="text-pediloya text-decoration-none fw-bold" style="letter-spacing: 0.5px;">
-                        λ Lambda Soluciones
-                    </a>
-                </p>
-            </div>
-        </div>
-    </footer>
 </html>
