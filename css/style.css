@@ -72,6 +72,15 @@ body {
     font-size: 0.8rem;
 }
 
+/* Producto sin stock: etiqueta gris y foto apagada */
+.etiqueta-sin-stock {
+    background: #6c757d;
+    color: #fff;
+}
+.card-producto.sin-stock img {
+    opacity: 0.4;
+}
+
 /* Botón Flotante del Carrito */
 .btn-flotante {
     position: fixed;
