@@ -6,7 +6,7 @@ let productos = [];
 let carrito = [];               // [{ id, cantidad }]
 let categoriaActiva = 'Todos';
 let textoBuscado = '';
-let ubicacion = null;           // { latitud, longitud } si el cliente la sumó al pedido
+let ubicacion = null;           // { latitud, longitud, precision } si el cliente la sumó al pedido
 
 // Zona de botones de cada tarjeta en pantalla (id del producto -> elemento),
 // para poder redibujar solo esa parte cuando cambia la cantidad.
@@ -17,6 +17,9 @@ const CLAVE_ENTREGA = 'pediloya-entrega';
 const TARJETAS_DE_CARGA = 8;
 // Ancho con el que se piden las fotos: alcanza para dos columnas en un celular de pantalla densa.
 const ANCHO_FOTO = 480;
+// Metros. Más allá de esto el link puede caer a una o dos cuadras: se avisa en el pedido.
+const PRECISION_ACEPTABLE = 100;
+const PLAN_B_UBICACION = 'Si no anda, mandá el pedido igual y después compartí tu ubicación en el chat de WhatsApp (clip → Ubicación).';
 
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('pie-whatsapp').href = 'https://wa.me/' + NEGOCIO.whatsapp;
@@ -527,6 +530,7 @@ function guardarEntrega() {
 // Suma (o quita) la ubicación actual del cliente. Solo se usa para poner un
 // link al mapa en el mensaje del pedido: no se guarda ni se manda a otro lado.
 function alternarUbicacion() {
+    const boton = document.getElementById('btn-ubicacion');
     const texto = document.getElementById('btn-ubicacion-texto');
     const estado = document.getElementById('ubicacion-estado');
 
@@ -537,22 +541,61 @@ function alternarUbicacion() {
         return;
     }
     if (!navigator.geolocation) {
-        estado.textContent = 'Este navegador no permite compartir la ubicación. Con la dirección alcanza.';
+        estado.textContent = 'Este navegador no permite compartir la ubicación. ' + PLAN_B_UBICACION;
         return;
     }
 
+    const alEncontrar = posicion => {
+        boton.disabled = false;
+        ubicacion = {
+            latitud: posicion.coords.latitude,
+            longitud: posicion.coords.longitude,
+            precision: Math.round(posicion.coords.accuracy)
+        };
+        texto.textContent = 'Quitar mi ubicación';
+        estado.textContent = ubicacion.precision > PRECISION_ACEPTABLE
+            ? 'Listo, pero es aproximada (unos ' + ubicacion.precision + ' m). Revisá que la dirección esté bien escrita.'
+            : 'Listo: el pedido va a llevar un link con tu ubicación en el mapa.';
+    };
+    const alFallar = error => {
+        boton.disabled = false;
+        estado.textContent = explicarErrorUbicacion(error) + ' ' + PLAN_B_UBICACION;
+    };
+
+    boton.disabled = true;
     estado.textContent = 'Buscando tu ubicación…';
+    // Primero con el GPS. Bajo techo o con la ubicación del celular recién
+    // prendida suele tardar o no encontrar nada; ahí se vuelve a probar con la
+    // ubicación aproximada (wifi y antenas), que casi siempre responde.
     navigator.geolocation.getCurrentPosition(
-        posicion => {
-            ubicacion = { latitud: posicion.coords.latitude, longitud: posicion.coords.longitude };
-            texto.textContent = 'Quitar mi ubicación';
-            estado.textContent = 'Listo: el pedido va a llevar un link con tu ubicación en el mapa.';
+        alEncontrar,
+        error => {
+            if (error.code === error.PERMISSION_DENIED) return alFallar(error);
+            estado.textContent = 'Seguimos buscando tu ubicación…';
+            navigator.geolocation.getCurrentPosition(
+                alEncontrar,
+                alFallar,
+                { enableHighAccuracy: false, timeout: 20000, maximumAge: 10 * 60 * 1000 }
+            );
         },
-        () => {
-            estado.textContent = 'No pudimos obtener tu ubicación. Revisá el permiso del navegador o seguí solo con la dirección.';
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 60 * 1000 }
     );
+}
+
+// Cada falla se arregla distinto, así que se explica según el caso.
+function explicarErrorUbicacion(error) {
+    if (error.code !== error.PERMISSION_DENIED) {
+        return 'No encontramos tu ubicación. Fijate que la ubicación del celular esté prendida y volvé a tocar el botón; cerca de una ventana anda mejor.';
+    }
+    const agente = navigator.userAgent;
+    // Los navegadores que traen adentro Instagram, Facebook y otras apps no dejan compartirla.
+    if (/Instagram|FBAN|FBAV|FB_IAB|Line\/|TikTok|musical_ly|; wv\)/i.test(agente)) {
+        return 'Estás viendo la página dentro de otra app, que no deja compartir la ubicación. Abrila en Chrome o Safari desde el menú de la app (⋮ o …).';
+    }
+    if (/iPhone|iPad|iPod/.test(agente)) {
+        return 'El iPhone tiene bloqueada la ubicación para el navegador. Entrá a Ajustes → Privacidad y seguridad → Localización, prendela y en tu navegador elegí "Al usar la app". Después recargá la página (tu pedido no se pierde) y volvé a tocar el botón.';
+    }
+    return 'El navegador tiene bloqueada la ubicación para esta página. Tocá el ícono que está al lado de la dirección de la página, entrá a Permisos y poné Ubicación en Permitir. Después recargá la página (tu pedido no se pierde) y volvé a tocar el botón.';
 }
 
 // --- Envío por WhatsApp -----------------------------------------------------
@@ -588,7 +631,11 @@ function armarMensaje() {
     mensaje += 'Nombre: ' + valorDe('entrega-nombre') + '\n';
     mensaje += 'Dirección: ' + valorDe('entrega-direccion') + '\n';
     if (valorDe('entrega-indicaciones')) mensaje += 'Indicaciones: ' + valorDe('entrega-indicaciones') + '\n';
-    if (ubicacion) mensaje += 'Ubicación: https://www.google.com/maps?q=' + ubicacion.latitud + ',' + ubicacion.longitud + '\n';
+    if (ubicacion) {
+        mensaje += 'Ubicación: https://www.google.com/maps?q=' + ubicacion.latitud + ',' + ubicacion.longitud;
+        if (ubicacion.precision > PRECISION_ACEPTABLE) mensaje += ' (aproximada, unos ' + ubicacion.precision + ' m)';
+        mensaje += '\n';
+    }
 
     const pago = formaDePagoElegida();
     if (pago) {
