@@ -14,7 +14,7 @@ const SUPABASE = {
 // Datos del negocio que usa el catálogo.
 const NEGOCIO = {
     // Número que recibe los pedidos: con código de país, sin "+" ni espacios.
-    whatsapp: '5493885830234',
+    whatsapp: '5493885838257',
     // Formas de pago que se ofrecen al armar el pedido.
     formasDePago: ['Efectivo', 'Transferencia']
 };

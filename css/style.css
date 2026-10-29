@@ -367,6 +367,22 @@ body::before {
     letter-spacing: 0.04em;
     text-transform: uppercase;
 }
+.pie-candado {
+    display: inline-block;
+    margin-top: 1rem;
+    padding: 0.25rem;
+    border-radius: 0.25rem;
+    color: var(--texto-suave);
+    opacity: 0.3;
+    transition: opacity 0.2s;
+}
+.pie-candado .icono {
+    fill: none;
+}
+.pie-candado:hover,
+.pie-candado:focus-visible {
+    opacity: 1;
+}
 
 /* --- Pedido (panel lateral) ----------------------------------------------- */
 
