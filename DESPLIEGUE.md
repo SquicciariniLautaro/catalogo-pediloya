@@ -5,7 +5,7 @@ Cómo queda repartido:
 | Pieza | Dónde vive |
 | --- | --- |
 | Productos, fotos, usuarios y permisos | Supabase |
-| Catálogo (`index.html`) y panel (`admin.html`) | GitHub Pages: `https://squicciarinilautaro.github.io/catalogo-pediloya/` |
+| Catálogo (`index.html`) y panel (`admin.html`) | Vercel: `https://catalogo-pediloya.vercel.app/` |
 
 El navegador habla directo con Supabase. No hay servidor propio en el medio: lo que cada
 uno puede ver o cambiar lo deciden los permisos escritos en `supabase/migrations/`.
@@ -79,14 +79,14 @@ cambiar nada. Los correos no van en el código porque este repositorio es públi
 
    Nunca copies la `secret` ni la `service_role`: saltean todos los permisos.
 2. Pegá los dos valores en `js/config.js`.
-3. Subí el cambio a `main`. GitHub Pages lo publica solo en un par de minutos.
+3. Subí el cambio a `main`. Vercel lo publica solo en menos de un minuto.
 
 Desde ese momento el catálogo lee de Supabase y la planilla de Google deja de usarse.
 
 ## Paso 7 - Comprobaciones
 
 - [ ] El catálogo muestra los productos en el mismo orden que antes.
-- [ ] `…/catalogo-pediloya/admin.html` deja entrar con un administrador. También se llega
+- [ ] `https://catalogo-pediloya.vercel.app/admin.html` deja entrar con un administrador. También se llega
       desde el candado chiquito al final del pie del catálogo.
 - [ ] Agregar un producto con foto, editarlo, moverlo de lugar y borrarlo; después de cada
       cambio, recargar el catálogo y ver que se refleja.
