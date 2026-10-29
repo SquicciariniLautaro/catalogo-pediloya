@@ -86,7 +86,8 @@ Desde ese momento el catálogo lee de Supabase y la planilla de Google deja de u
 ## Paso 7 - Comprobaciones
 
 - [ ] El catálogo muestra los productos en el mismo orden que antes.
-- [ ] `…/catalogo-pediloya/admin.html` deja entrar con un administrador.
+- [ ] `…/catalogo-pediloya/admin.html` deja entrar con un administrador. También se llega
+      desde el candado chiquito al final del pie del catálogo.
 - [ ] Agregar un producto con foto, editarlo, moverlo de lugar y borrarlo; después de cada
       cambio, recargar el catálogo y ver que se refleja.
 - [ ] Marcar un producto sin stock: en el catálogo aparece gris y no se puede pedir.
